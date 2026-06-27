@@ -396,15 +396,18 @@ window.addEventListener('mouseup', () => {
 
     //canvas.addEventListener('touchstart', (e) => {
     window.addEventListener('touchstart', (e) => {
-        e.preventDefault(); if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        e.preventDefault(); 
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
     // 게임 시작 및 메뉴 제어 처리
     for (let i = 0; i < e.changedTouches.length; i++) {
-        handlePointerDown(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        //handlePointerDown(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
     }
-					if (gameState === 'playing') {
+/*					if (gameState === 'playing') {
         		processInput(e.touches);
+
     			}    
-/*        if (gameState === 'playing') {
+*/
+        if (gameState === 'playing') {
             const rect = canvas.getBoundingClientRect();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 let curX = (e.changedTouches[i].clientX - rect.left) * (canvas.width / rect.width);
@@ -413,7 +416,7 @@ window.addEventListener('mouseup', () => {
             parseTouches(e);
         } else {
             handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
-        }*/
+        }
     }, { passive: false });
 
     //canvas.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouches(e); }, { passive: false });
