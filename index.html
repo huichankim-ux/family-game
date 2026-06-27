@@ -90,6 +90,10 @@ body {
 //const analytics = getAnalytics(app);
   // Firebase 설정 끝
   
+  
+  let lastJumpTime = 0; // 전역 변수로 추가
+
+
 const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 10000];
 //let currentStageTarget = targetDistances[currentStage - 1];
 
@@ -496,7 +500,9 @@ function processInput(touches) {
     
     inputStatus.leftPressed = hasLeft;
     inputStatus.rightPressed = hasRight;
-    if (jumping) jump();
+    if (jumping) {
+    	jump();
+    }
 }
 function updateMouseInput(e, isClick = false) {
     if (e.buttons !== 1) return;
@@ -512,11 +518,18 @@ function updateMouseInput(e, isClick = false) {
 
     function jump() {
         if (gameState !== 'playing') return;
+        
+  const now = Date.now();
+    // 0.1초 내의 중복 터치 무시 (더블 점프 튕김 방지)
+    if (now - lastJumpTime < 100) return;      
+        
+        
         if (player.isGrounded || player.jumpCount < player.maxJumps) {
             let power = player.boostTimer > 0 ? player.jumpPower * 1.25 : player.jumpPower;
             if (player.jumpCount === 0) { player.vy = power; playSound('jump'); } 
             else { player.vy = power * 0.88; playSound('doubleJump'); }
             player.jumpCount++; player.isGrounded = false;
+            lastJumpTime = now; // 점프 시점 기록
         }
     }
 
