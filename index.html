@@ -84,6 +84,17 @@ const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 1
     const ctx = canvas.getContext('2d');
     
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    
+// 1. 전역 변수로 터치 상태 관리
+let touchControl = {
+    leftTouchId: null,
+    moveStartX: 0,
+    isMoving: false
+};    
+    
+    
+    
 // [추가] 화면 비율 최적화 함수
     function adjustGameSize() {
         const container = document.getElementById('gameContainer');
@@ -369,6 +380,7 @@ function loadLeaderboard() {
     });
     window.addEventListener('mouseup', () => { inputStatus.leftPressed = false; inputStatus.rightPressed = false; });
 
+    /*
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault(); if (audioCtx.state === 'suspended') { audioCtx.resume(); }
         if (gameState === 'playing') {
@@ -385,6 +397,64 @@ function loadLeaderboard() {
 
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouches(e); }, { passive: false });
     window.addEventListener('touchend', (e) => { if (gameState === 'playing') parseTouches(e); });
+*/
+
+
+// 2. 화면 전체를 감시하는 터치 핸들러
+window.addEventListener('touchstart', (e) => {
+    if (gameState !== 'playing') return;
+    
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        let touch = e.changedTouches[i];
+        let tX = (touch.clientX - canvas.getBoundingClientRect().left) * (canvas.width / canvas.getBoundingClientRect().width);
+        
+        // 왼쪽 화면 (0 ~ 50%) -> 이동 시작
+        if (tX < canvas.width / 2) {
+            touchControl.leftTouchId = touch.identifier;
+            touchControl.moveStartX = tX;
+            touchControl.isMoving = true;
+        } 
+        // 오른쪽 화면 (50% ~ 100%) -> 점프
+        else {
+            jump();
+        }
+    }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+    if (gameState !== 'playing' || !touchControl.isMoving) return;
+    
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        let touch = e.changedTouches[i];
+        if (touch.identifier === touchControl.leftTouchId) {
+            let tX = (touch.clientX - canvas.getBoundingClientRect().left) * (canvas.width / canvas.getBoundingClientRect().width);
+            let delta = tX - touchControl.moveStartX;
+            
+            // 드래그 거리로 좌우 판단
+            if (delta < -20) {
+                inputStatus.leftPressed = true;
+                inputStatus.rightPressed = false;
+            } else if (delta > 20) {
+                inputStatus.rightPressed = true;
+                inputStatus.leftPressed = false;
+            } else {
+                inputStatus.leftPressed = false;
+                inputStatus.rightPressed = false;
+            }
+        }
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchControl.leftTouchId) {
+            touchControl.leftTouchId = null;
+            touchControl.isMoving = false;
+            inputStatus.leftPressed = false;
+            inputStatus.rightPressed = false;
+        }
+    }
+});
 
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' || e.code === 'ArrowUp') { if (gameState === 'playing') { e.preventDefault(); jump(); } }
