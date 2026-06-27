@@ -55,7 +55,6 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // 오디오 효과음 장치
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playSound(type) {
         if (audioCtx.state === 'suspended') { audioCtx.resume(); }
@@ -89,8 +88,7 @@
             gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
             osc.start(); osc.stop(audioCtx.currentTime + 0.2);
         } else if (type === 'pushAlert') { 
-            osc.type = 'sine'; 
-            osc.frequency.setValueAtTime(580, audioCtx.currentTime);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(580, audioCtx.currentTime);
             osc.frequency.setValueAtTime(720, audioCtx.currentTime + 0.05);
             gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
             osc.start(); osc.stop(audioCtx.currentTime + 0.1);
@@ -99,14 +97,28 @@
             osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.6);
             gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
             osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+        } else if (type === 'fanfare') {
+            const now = audioCtx.currentTime;
+            const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 523.25, 659.25];
+            notes.forEach((freq, i) => {
+                const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                o.type = 'triangle'; o.frequency.value = freq; o.connect(g); g.connect(audioCtx.destination);
+                g.gain.setValueAtTime(0.2, now + i*0.12); o.start(now + i*0.12); o.stop(now + i*0.12 + 0.1);
+            });
+            for(let j=0; j<15; j++) {
+                const oClap = audioCtx.createOscillator(); const gClap = audioCtx.createGain();
+                oClap.type = 'sawtooth'; oClap.frequency.setValueAtTime(180 + Math.random()*200, now + j*0.08);
+                oClap.connect(gClap); gClap.connect(audioCtx.destination);
+                gClap.gain.setValueAtTime(0.12, now + j*0.08); oClap.start(now + j*0.08); oClap.stop(now + j*0.08 + 0.04);
+            }
         }
     }
 
     const charSettings = {
-        dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce', xBound: [140, 240] },
-        mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55', xBound: [280, 380] },
-        hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f', xBound: [420, 520] },
-        yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660] }
+        dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce', xBound: [140, 240], decors: ['🏭', '🏗️', '🔩', '☁️'] },
+        mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55', xBound: [280, 380], decors: ['🏪', '🛍️', '🏷️', '✨'] },
+        hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f', xBound: [420, 520], decors: ['🏫', '🌳', '☀️', '🎈'] },
+        yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'] }
     };
 
     const images = {};
@@ -127,12 +139,39 @@
         boostTimer: 0
     };
     
-    let obstacles = []; let items = []; let platforms = []; let steps = []; 
+    let obstacles = []; let items = []; let platforms = []; let steps = []; let bgElements = [];
     let spawnTimer = 0; let flashTimer = 0; let deathAnimateTimer = 0;
     let isForcedPushing = false; 
 
+    // [신규] 메시지 표시용 시스템 상태 변수
+    let messageText = "";
+    let messageTimer = 0;
+
+    let particles = [];
+    let goalFinishTimer = 0;
+    let goalFlagX = 950; 
+
     let inputStatus = { leftPressed: false, rightPressed: false };
     let leaderboard = [];
+
+    // 대사 세팅 헬퍼 함수
+    function showSpeechMessage(text) {
+        // 피버타임 진행 중일 때는 일반 메시지 적재를 원천 거부합니다.
+        if (player.boostTimer > 0) return;
+        messageText = text;
+        messageTimer = 60; // 60프레임 (약 1초 노출)
+    }
+
+    function createConfetti() {
+        for(let i=0; i<80; i++) {
+            particles.push({
+                x: Math.random() * canvas.width, y: Math.random() * -100 - 10,
+                size: 5 + Math.random() * 8, color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                speedY: 2 + Math.random() * 4, speedX: -2 + Math.random() * 4,
+                rotation: Math.random() * 360, rotSpeed: -4 + Math.random() * 8
+            });
+        }
+    }
 
     function loadLeaderboard() {
         const savedData = localStorage.getItem('kimFamilyCustomLeaderboard');
@@ -210,11 +249,12 @@
     });
 
     function initGame() {
-        gameState = 'playing'; score = 0; distance = 0; gameSpeed = 6;
+        gameState = 'playing'; score = 0; distance = 0; gameSpeed = 6; goalFlagX = 950;
         player.x = 150; player.y = 300; player.vy = 0; player.jumpCount = 0;
         player.jumpPower = player.baseJumpPower; player.boostTimer = 0;
-        obstacles = []; items = []; platforms = []; steps = [];
-        spawnTimer = 0; flashTimer = 0; deathAnimateTimer = 0;
+        obstacles = []; items = []; platforms = []; steps = []; particles = []; bgElements = [];
+        spawnTimer = 0; flashTimer = 0; deathAnimateTimer = 0; goalFinishTimer = 0;
+        messageText = ""; messageTimer = 0;
         isForcedPushing = false;
         inputStatus.leftPressed = false; inputStatus.rightPressed = false;
         document.getElementById('nameInputOverlay').style.display = 'none';
@@ -238,21 +278,42 @@
             deathAnimateTimer++; player.vy += 0.6; player.y += player.vy; player.x -= 2;
             return;
         }
+        
+        if (gameState === 'goalSuccess') {
+            goalFinishTimer++;
+            particles.forEach(p => { p.y += p.speedY; p.x += p.speedX; p.rotation += p.rotSpeed; });
+            if (goalFinishTimer > 150) {
+                gameState = 'inputName';
+                document.getElementById('overlayScore').innerText = score;
+                document.getElementById('playerName').value = '';
+                document.getElementById('nameInputOverlay').style.display = 'flex';
+            }
+            return;
+        }
+        
         if (gameState !== 'playing') return;
 
         distance += gameSpeed * 0.05; score += 1;
         gameSpeed = 6 + (distance / 200);
         flashTimer++;
 
+        // 메시지 일반 타이머 감소
+        if (messageTimer > 0) messageTimer--;
+
+        // --- [핵심 개량] 피버타임 메세지 및 실시간 카운트다운 강제 동기화 ---
         if (player.boostTimer > 0) {
             player.boostTimer--;
-            if (player.boostTimer <= 0) { player.jumpPower = player.baseJumpPower; }
+            let remainSeconds = Math.ceil(player.boostTimer / 60);
+            messageText = `🔥 FEVER ${remainSeconds}s`; // 고정 메시지화 및 다른 메시지 무시
+            if (player.boostTimer <= 0) { 
+                player.jumpPower = player.baseJumpPower; 
+                messageText = ""; // 피버 종료 시 클리어
+            }
         }
 
         let wishX = player.x;
         if (inputStatus.leftPressed) wishX -= player.speedX;
         if (inputStatus.rightPressed) wishX += player.speedX;
-        
         player.x = Math.max(0, Math.min(canvas.width - player.width, wishX));
 
         player.vy += player.gravity;
@@ -268,28 +329,31 @@
             if (player.x + player.width > step.x && player.x < step.x + step.width &&
                 player.y + player.height > step.y && player.y < step.y + step.height) {
                 
-                if (player.boostTimer > 0) { steps.splice(i, 1); continue; }
+                // --- [수정] 무적 피버 타임에도 부서지면서 파괴 메시지가 노출되도록 분기 결합 ---
+                if (player.boostTimer > 0) { 
+                    steps.splice(i, 1); 
+                    continue; 
+                }
 
                 if (player.y + player.height - player.vy <= step.y + 12 && player.vy >= 0) {
                     player.y = step.y - player.height; player.vy = 0; player.isGrounded = true; player.jumpCount = 0; onSurface = true;
                 } else {
-                    player.x -= (gameSpeed + 1.5); 
-                    isForcedPushing = true; 
+                    player.x -= (gameSpeed + 1.5); isForcedPushing = true; 
+                    showSpeechMessage("아야!");
                     if (flashTimer % 12 === 0) playSound('pushAlert'); 
                 }
             }
             if (step.x < -150) steps.splice(i, 1);
         }
 
-        // 공중 발판 사방형 고체 충돌 연산
+        // 공중 발판
         for (let i = 0; i < platforms.length; i++) {
             let plat = platforms[i]; plat.x -= gameSpeed;
             if (player.x + player.width > plat.x && player.x < plat.x + plat.width &&
                 player.y + player.height > plat.y && player.y < plat.y + plat.height) {
                 if (player.y + player.height - player.vy <= plat.y + 12 && player.vy >= 0) {
                     player.y = plat.y - player.height; player.vy = 0; player.isGrounded = true; player.jumpCount = 0; onSurface = true;
-                } 
-                else if (player.y - player.vy >= plat.y + plat.height - 10 && player.vy < 0) {
+                } else if (player.y - player.vy >= plat.y + plat.height - 10 && player.vy < 0) {
                     player.y = plat.y + plat.height; player.vy = 0;
                 }
             }
@@ -298,38 +362,47 @@
 
         // 지면 착지
         if (!onSurface) {
-            if (player.y >= 300) {
-                player.y = 300; player.vy = 0; player.isGrounded = true; player.jumpCount = 0;
-            } else {
-                if (player.jumpCount === 0) player.jumpCount = 1; player.isGrounded = false;
-            }
+            if (player.y >= 300) { player.y = 300; player.vy = 0; player.isGrounded = true; player.jumpCount = 0; } 
+            else { if (player.jumpCount === 0) player.jumpCount = 1; player.isGrounded = false; }
         }
 
         if (player.x <= 0) {
             player.x = 0; 
-            if (isForcedPushing) {
-                gameState = 'gameover';
-                player.vy = -10;
-                playSound('gameover');
-                return;
-            }
+            if (isForcedPushing) { gameState = 'gameover'; player.vy = -10; playSound('gameover'); return; }
         }
 
-        // 스폰 관리
+        // 스폰 제어기
         spawnTimer++;
         let spawnDelay = Math.max(35, 75 - (gameSpeed * 2));
         if (player.boostTimer > 0) spawnDelay /= 5;
 
-        if (spawnTimer > spawnDelay) {
+        if (flashTimer % 40 === 0 && distance < 950) {
+            const list = charSettings[selectedChar].decors;
+            const emoji = list[Math.floor(Math.random() * list.length)];
+            bgElements.push({
+                x: 850, y: 30 + Math.random() * 150, text: emoji, size: 24 + Math.floor(Math.random() * 20), scrollFactor: 0.3 + Math.random() * 0.4
+            });
+        }
+
+        // --- [수정] 피버 타임 중(무적 상태)에도 장애물/계단이 스폰될 수 있도록 조건 수정 ---
+        if (spawnTimer > spawnDelay && distance < 950) {
             let rand = Math.random();
             if (player.boostTimer > 0) {
-                let fvRand = Math.random(); let itemY = 100 + Math.random() * 160;
-                if (fvRand < 0.12) items.push({ x: 850, y: itemY, width: 35, height: 35, type: 'gift' });
-                else items.push({ x: 850, y: itemY, width: 30, height: 30, type: 'star' });
-            } else {
-                if (rand < 0.22) {
+                // 피버타임 전용 초고속 드랍 확률 (장애물과 아이템 동시 믹스 스폰)
+                let fvRand = Math.random();
+                let itemY = 100 + Math.random() * 160;
+                if (fvRand < 0.25) {
+                    // 무적 상태 질주용 장애물 배치
                     obstacles.push({ x: 850, y: 330, width: 40, height: 45 });
-                } else if (rand < 0.45) {
+                } else if (fvRand < 0.45) {
+                    items.push({ x: 850, y: itemY, width: 35, height: 35, type: 'gift' });
+                } else {
+                    items.push({ x: 850, y: itemY, width: 30, height: 30, type: 'star' });
+                }
+            } else {
+                // 평상시 일반 스폰 엔진
+                if (rand < 0.22) { obstacles.push({ x: 850, y: 330, width: 40, height: 45 }); } 
+                else if (rand < 0.45) {
                     let stepHeight = 40 + Math.floor(Math.random() * 3) * 25;
                     steps.push({ x: 850, y: 375 - stepHeight, width: 65, height: stepHeight });
                 } else if (rand < 0.72) {
@@ -351,33 +424,44 @@
             spawnTimer = 0;
         }
 
-        // 일반 장애물 연산
+        if (distance >= 970 && gameState === 'playing') { goalFlagX -= gameSpeed; }
+
+        // 일반 장애물 충돌
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i]; obs.x -= gameSpeed;
             if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
-                if (player.boostTimer > 0) { obstacles.splice(i, 1); continue; }
-                score = Math.max(0, score - 150); playSound('hit'); obstacles.splice(i, 1); continue;
+                if (player.boostTimer > 0) { 
+                    obstacles.splice(i, 1); 
+                    continue; 
+                }
+                score = Math.max(0, score - 150); 
+                playSound('hit'); 
+                showSpeechMessage("아야!");
+                obstacles.splice(i, 1); 
+                continue;
             }
             if (obs.x < -50) obstacles.splice(i, 1);
         }
 
-        // 아이템 처리
+        // 아이템 연산 및 팝업 텍스트 트리거
         for (let i = items.length - 1; i >= 0; i--) {
             let item = items[i]; item.x -= gameSpeed;
             if (player.x < item.x + item.width && player.x + player.width > item.x && player.y < item.y + item.height && player.y + player.height > item.y) {
-                if (item.type === 'bigStar') { player.boostTimer = 600; playSound('powerup'); } 
-                else if (item.type === 'gift') { score += 5000; playSound('item'); } 
-                else { score += 1000; playSound('item'); }
+                if (item.type === 'bigStar') { 
+                    player.boostTimer = 600; 
+                    playSound('powerup'); 
+                } else if (item.type === 'gift') { 
+                    score += 5000; 
+                    playSound('item'); 
+                    showSpeechMessage("대박! +5000");
+                } else { 
+                    score += 1000; 
+                    playSound('item'); 
+                    showSpeechMessage("+1000!");
+                }
                 items.splice(i, 1); continue;
             }
             if (item.x < -50) items.splice(i, 1);
-        }
-
-        if (distance >= 1000) {
-            gameState = 'inputName';
-            document.getElementById('overlayScore').innerText = score;
-            document.getElementById('playerName').value = '';
-            document.getElementById('nameInputOverlay').style.display = 'flex';
         }
     }
 
@@ -401,7 +485,6 @@
         if (gameState === 'ready') {
             ctx.fillStyle = '#3a5f7d'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#ffca28'; ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
-            // [변경] 게임 메인 타이틀 수정 완료
             ctx.fillText("아빠를 이겨라 이것들아", canvas.width / 2, 70);
             ctx.fillStyle = '#ffffff'; ctx.font = '18px Arial';
             ctx.fillText("함께 달릴 캐릭터의 얼굴을 마우스나 손가락으로 누르세요!", canvas.width / 2, 120);
@@ -419,25 +502,40 @@
             ctx.fillText("🧱 규칙: 장애물에 부딪혀 강제로 밀리면 탈락! 스스로 왼쪽 주행 시에는 그냥 안전하게 막힙니다.", canvas.width / 2, 340);
             ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 좌우 터치식 이동", canvas.width / 2, 370);
 
-        } else if (gameState === 'playing' || gameState === 'inputName' || gameState === 'gameover') {
+        } else if (gameState === 'playing' || gameState === 'inputName' || gameState === 'gameover' || gameState === 'goalSuccess') {
             ctx.fillStyle = cfg.theme; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(255,255,255,0.04)';
+            
+            bgElements.forEach(el => {
+                ctx.font = `${el.size}px Arial`; ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
+                ctx.fillText(el.text, el.x, el.y);
+            });
+
+            ctx.fillStyle = 'rgba(255,255,255,0.02)';
             for(let i=0; i<canvas.width; i+=40) { ctx.fillRect(i, 0, 20, canvas.height); }
 
             ctx.fillStyle = '#1a202c'; ctx.fillRect(0, 375, canvas.width, 75);
             ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 375, canvas.width, 6);
 
-            // 공중 발판
-            platforms.forEach(plat => { ctx.fillStyle = '#a0aec0'; ctx.fillRect(plat.x, plat.y, plat.width, plat.height); ctx.fillStyle = '#4a5568'; ctx.fillRect(plat.x, plat.y, plat.width, 3); });
+            if (distance >= 960) {
+                ctx.save(); ctx.lineWidth = 6; ctx.strokeStyle = '#ffffff';
+                ctx.beginPath(); ctx.moveTo(goalFlagX, 150); ctx.lineTo(goalFlagX, 375); ctx.stroke(); 
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(goalFlagX, 150, 60, 40);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(goalFlagX, 150, 15, 13); ctx.fillRect(goalFlagX + 30, 150, 15, 13);
+                ctx.fillRect(goalFlagX + 15, 163, 15, 14); ctx.fillRect(goalFlagX + 45, 163, 15, 14);
+                ctx.fillRect(goalFlagX, 177, 15, 13); ctx.fillRect(goalFlagX + 30, 177, 15, 13);
+                ctx.font = 'bold 12px Arial'; ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left';
+                ctx.fillText("GOAL!", goalFlagX + 5, 140); ctx.restore();
+            }
 
-            // 계단식 블록
+            platforms.forEach(plat => { ctx.fillStyle = '#a0aec0'; ctx.fillRect(plat.x, plat.y, plat.width, plat.height); ctx.fillStyle = '#4a5568'; ctx.fillRect(plat.x, plat.y, plat.width, 3); });
             steps.forEach(step => {
                 ctx.fillStyle = '#718096'; ctx.fillRect(step.x, step.y, step.width, step.height);
                 ctx.strokeStyle = '#2d3748'; ctx.lineWidth = 3; ctx.strokeRect(step.x, step.y, step.width, step.height);
                 ctx.fillStyle = '#4a5568'; ctx.fillRect(step.x, step.y, step.width, 5);
             });
 
-            // 장애물 및 아이템
             ctx.font = '32px Arial'; ctx.textAlign = 'center';
             obstacles.forEach(obs => { ctx.fillText(cfg.obstacle, obs.x + obs.width/2, obs.y + obs.height - 5); });
             items.forEach(item => {
@@ -451,14 +549,10 @@
                 }
             });
 
-            // 플레이어 그리기
-            if (gameState === 'gameover') {
-                ctx.fillStyle = (flashTimer % 4 < 2) ? '#e53e3e' : 'rgba(229,62,62,0.3)';
-            } else if (player.boostTimer > 0) {
-                let pChroma = (flashTimer * 25) % 360; ctx.fillStyle = `hsl(${pChroma}, 100%, 55%)`;
-            } else {
-                ctx.fillStyle = cfg.bodyColor;
-            }
+            // 플레이어 바디
+            if (gameState === 'gameover') { ctx.fillStyle = (flashTimer % 4 < 2) ? '#e53e3e' : 'rgba(229,62,62,0.3)'; } 
+            else if (player.boostTimer > 0) { let pChroma = (flashTimer * 25) % 360; ctx.fillStyle = `hsl(${pChroma}, 100%, 55%)`; } 
+            else { ctx.fillStyle = cfg.bodyColor; }
             ctx.fillRect(player.x, player.y + 35, player.width, 40);
             ctx.fillStyle = '#ffffff'; ctx.fillRect(player.x + 8, player.y + 70, 12, 5); ctx.fillRect(player.x + 30, player.y + 70, 12, 5);
 
@@ -466,6 +560,40 @@
                 if (images[selectedChar].complete && images[selectedChar].naturalWidth !== 0) { ctx.drawImage(images[selectedChar], player.x - 5, player.y - 5, 60, 60); } 
                 else { ctx.font = '45px Arial'; ctx.fillText(selectedChar==='dad'?'👨':selectedChar==='mom'?'👩':selectedChar==='hayun'?'👧':'👶', player.x + 25, player.y + 32); }
             } catch(e) {}
+
+            // --- [신규 구현] 캐릭터 머리 위 실시간 상호작용 말풍선 대사 박스 렌더링 ---
+            if ((messageTimer > 0 || player.boostTimer > 0) && gameState === 'playing') {
+                ctx.save();
+                ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+                let textWidth = ctx.measureText(messageText).width;
+                
+                // 말풍선 배경 그리기
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.strokeStyle = '#ffca28'; ctx.lineWidth = 2;
+                let boxX = player.x + player.width/2 - (textWidth + 16)/2;
+                let boxY = player.y - 45;
+                
+                // 둥근 사각형 및 꼭지점 꼬리 렌더링
+                ctx.fillRect(boxX, boxY, textWidth + 16, 26);
+                ctx.strokeRect(boxX, boxY, textWidth + 16, 26);
+                
+                // 대사 글씨 써넣기
+                ctx.fillStyle = (player.boostTimer > 0) ? '#e53e3e' : '#2d3748';
+                ctx.fillText(messageText, player.x + player.width/2, player.y - 28);
+                ctx.restore();
+            }
+
+            if (gameState === 'goalSuccess') {
+                particles.forEach(p => {
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                    ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore();
+                });
+                ctx.fillStyle = (flashTimer % 20 < 10) ? '#ffca28' : '#ffffff';
+                ctx.font = 'bold 42px Arial'; ctx.textAlign = 'center';
+                ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
+                ctx.fillText("🎉 완주 성공! 축하합니다! 🎉", canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
+            }
 
             if (gameState === 'gameover') {
                 ctx.fillStyle = '#ff1744'; ctx.font = 'bold 55px Arial'; ctx.textAlign = 'center';
@@ -477,10 +605,10 @@
                 }
             }
 
-            // 인게임 헤더 정보판
+            // 상단 대시보드
             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(10, 10, 780, 45);
             ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
-            ctx.fillText(`스테이지: ${cfg.bgName}`, 25, 38);
+            ctx.fillText(`테마: ${cfg.bgName}`, 25, 38);
             ctx.fillText(`점수: ${score}`, 190, 38);
             let displayDist = Math.min(1000, Math.floor(distance));
             ctx.fillText(`거리: ${displayDist}m / 1000m`, 320, 38);
