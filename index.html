@@ -60,7 +60,7 @@ body {
             <p style="color: #48bb78; font-weight: bold;">최종 점수: <span id="overlayScore">0</span>점</p>
             <input type="text" id="playerName" placeholder="이름을 입력하세요" maxlength="8">
             <br>
-            <button onclick="submitRanking()">랭킹 등록하기</button>
+            <button onclick="submitRanking() ">랭킹 등록하기</button>
         </div>
     </div>
 </div>
@@ -730,7 +730,11 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
     function submitRanking() {
     let nameInput = document.getElementById('playerName').value.trim();
     if (!nameInput) nameInput = "익명가족";
-    
+        let timeString = `Lv.${currentStage}`; 
+        leaderboard.push({ name: nameInput, score: score, date: timeString });
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, 5);
+   
     // 이제 서버로만 저장합니다
     saveLeaderboard(nameInput, score);
     
