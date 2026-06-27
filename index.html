@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kim's Family Go!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        /* UI 레이어 */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            color: white; text-align: center;
+            box-sizing: border-box;
+        }
+        #startScreen { background: #3a5f7d; }
+        #endingScreen { background: #1a1a2e; display: none; }
+        
+        h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 3px 3px #000; color: #ffca28; }
+        p { margin: 5px 0; font-size: 1rem; text-shadow: 1px 1px #000; }
+        
+        /* 캐릭터 선택 버튼 */
+        .char-container { display: flex; gap: 15px; margin: 20px 0; }
+        .char-card {
+            background: #fff; color: #333; padding: 10px; border-radius: 8px;
+            cursor: pointer; border: 4px solid #fff; width: 80px; transition: transform 0.2s;
+        }
+        .char-card:hover { transform: scale(1.05); border-color: #ffca28; }
+        .char-thumb { width: 60px; height: 60px; background: #ddd; border-radius: 5px; margin-bottom: 5px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .char-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .char-name { font-weight: bold; font-size: 0.9rem; }
+        
+        /* 버튼 스타일 */
+        .btn {
+            background: #ff5722; color: white; border: none; padding: 12px 30px;
+            font-size: 1.2rem; font-weight: bold; border-radius: 5px; cursor: pointer;
+            box-shadow: 0 4px #bf360c; text-shadow: 1px 1px #000; margin-top: 15px;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        
+        /* 랭킹 스타일 */
+        .ranking-box {
+            background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px;
+            width: 60%; margin: 15px 0; text-align: left; box-sizing: border-box;
+        }
+        .ranking-item { display: flex; justify-content: space-between; margin: 5px 0; font-size: 1.1rem; }
+        .rank-highlight { color: #ffca28; font-weight: bold; }
+        
+        .how-to { font-size: 0.85rem; color: #ddd; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+    <div id="startScreen" class="screen">
+        <h1>KIM'S FAMILY GO!</h1>
+        <p>함께 달릴 캐릭터를 선택하세요!</p>
+        
+        <div class="char-container">
+            <div class="char-card" onclick="selectCharacter('dad')">
+                <div class="char-thumb"><img src="dad.png" onerror="this.style.display='none'; this.parentNode.innerText='👨'"></div>
+                <div class="char-name">아빠</div>
+            </div>
+            <div class="char-card" onclick="selectCharacter('mom')">
+                <div class="char-thumb"><img src="mom.png" onerror="this.style.display='none'; this.parentNode.innerText='👩'"></div>
+                <div class="char-name">엄마</div>
+            </div>
+            <div class="char-card" onclick="selectCharacter('hayun')">
+                <div class="char-thumb"><img src="hayun.png" onerror="this.style.display='none'; this.parentNode.innerText='👧'"></div>
+                <div class="char-name">하윤</div>
+            </div>
+            <div class="char-card" onclick="selectCharacter('yeeun')">
+                <div class="char-thumb"><img src="yeeun.png" onerror="this.style.display='none'; this.parentNode.innerText='👶'"></div>
+                <div class="char-name">예은</div>
+            </div>
+        </div>
+        
+        <div class="how-to">🕹️ 조작 방법: [PC] 스페이스바 점프 | [모바일] 화면 터치 점프</div>
+    </div>
+
+    <div id="endingScreen" class="screen">
+        <h1>🎉 GOAL! 1km 완주 성공!</h1>
+        <p>최종 점수: <span id="finalScore" style="color:#ffca28; font-weight:bold; font-size:1.5rem;">0</span>점</p>
+        
+        <div class="ranking-box" id="rankingList">
+            </div>
+        
+        <button class="btn" onclick="restartGame()">다시 도전하기</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 사운드 생성기 (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        if (type === 'jump') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'item') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+    }
+
+    // 캐릭터별 데이터 설정
+    const charSettings = {
+        dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️ 톱니바퀴', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce' },
+        mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒 카트', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55' },
+        hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑 책상', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f' },
+        yeeun: { name: '예은', theme: '#ecc94b', obstacle: '🎒 가방', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#9b2c2c' }
+    };
+
+    // 이미지 객체 풀 생성
+    const images = {};
+    Object.keys(charSettings).forEach(key => {
+        images[key] = new Image();
+        images[key].src = charSettings[key].imgUrl;
+    });
+
+    let gameState = 'ready'; // ready, playing, ending
+    let selectedChar = 'dad';
+    let score = 0;
+    let distance = 0; // 단위: 미터 (최대 1000m)
+    let gameSpeed = 5;
+    
+    // 게임 요소 변수
+    let player = { x: 80, y: 300, width: 50, height: 75, vy: 0, gravity: 1.2, isGrounded: false };
+    let obstacles = [];
+    let items = [];
+    let spawnTimer = 0;
+    let animationFrameId;
+
+    // 캐릭터 선택 후 게임 시작
+    function selectCharacter(charKey) {
+        selectedChar = charKey;
+        document.getElementById('startScreen').style.display = 'none';
+        initGame();
+    }
+
+    function initGame() {
+        gameState = 'playing';
+        score = 0;
+        distance = 0;
+        gameSpeed = 6;
+        player.y = 300;
+        player.vy = 0;
+        obstacles = [];
+        items = [];
+        spawnTimer = 0;
+        
+        // 오디오 컨텍스트 활성화
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+        
+        loop();
+    }
+
+    // 점프 동작
+    function jump() {
+        if (player.isGrounded && gameState === 'playing') {
+            player.vy = -18;
+            player.isGrounded = false;
+            playSound('jump');
+        }
+    }
+
+    // 입력 리스너 (PC 스페이스바 & 전체 화면 터치)
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); jump(); } });
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, { passive: false });
+    canvas.addEventListener('mousedown', () => { jump(); });
+
+    // 메인 게임 루프
+    function loop() {
+        if (gameState !== 'playing') return;
+
+        update();
+        draw();
+
+        if (distance >= 1000) {
+            endGame();
+        } else {
+            animationFrameId = requestAnimationFrame(loop);
+        }
+    }
+
+    // 데이터 업데이트
+    function update() {
+        // 거리 및 점수 증가 (시간에 비례, 조금 어렵게 세팅)
+        distance += gameSpeed * 0.05;
+        score += 1;
+        
+        // 거리 게이지가 찰수록 난이도(속도) 상승
+        gameSpeed = 6 + (distance / 200);
+
+        // 중력 작용
+        player.vy += player.gravity;
+        player.y += player.vy;
+
+        // 바닥 충돌 처리
+        if (player.y >= 300) {
+            player.y = 300;
+            player.vy = 0;
+            player.isGrounded = true;
+        }
+
+        // 장애물 및 아이템 생성 관리
+        spawnTimer++;
+        if (spawnTimer > Math.max(50, 90 - (gameSpeed * 2))) {
+            if (Math.random() > 0.4) {
+                // 장애물 생성
+                obstacles.push({ x: 850, y: 330, width: 40, height: 45 });
+            } else {
+                // 아이템 생성 (코인/별)
+                items.push({ x: 850, y: 200 + Math.random() * 80, width: 30, height: 30, collected: false });
+            }
+            spawnTimer = 0;
+        }
+
+        // 장애물 이동 및 충돌 검사
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.x -= gameSpeed;
+
+            // 충돌 검사 (피격 시 점수 감점 및 뒤로 살짝 밀림 효과음)
+            if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+                player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+                score = Math.max(0, score - 150); // 장애물 부딪히면 감점
+                playSound('hit');
+                obstacles.splice(i, 1);
+                continue;
+            }
+            if (obs.x < -50) obstacles.splice(i, 1);
+        }
+
+        // 아이템 이동 및 획득 검사
+        for (let i = items.length - 1; i >= 0; i--) {
+            let item = items[i];
+            item.x -= gameSpeed;
+
+            if (player.x < item.x + item.width && player.x + player.width > item.x &&
+                player.y < item.y + item.height && player.y + player.height > item.y) {
+                score += 500; // 보너스 점수
+                playSound('item');
+                items.splice(i, 1);
+                continue;
+            }
+            if (item.x < -50) items.splice(i, 1);
+        }
+    }
+
+    // 화면 그리기 (렌더링)
+    function draw() {
+        const cfg = charSettings[selectedChar];
+        
+        // 1. 테마별 배경색 칠하기
+        ctx.fillStyle = cfg.theme;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 레트로 감성 배경선 그리기
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        for(let i=0; i<canvas.width; i+=40) { ctx.fillRect(i, 0, 20, canvas.height); }
+
+        // 2. 바닥 땅 그리기
+        ctx.fillStyle = '#1a202c';
+        ctx.fillRect(0, 375, canvas.width, 75);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(0, 375, canvas.width, 8); // 가이드 라인
+
+        // 3. 장애물 그리기 (이모지 및 텍스트 박스로 레트로 연출)
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        obstacles.forEach(obs => {
+            ctx.fillText(cfg.obstacle.split(' ')[0], obs.x + obs.width/2, obs.y + obs.height - 5);
+        });
+
+        // 4. 아이템 코인 그리기
+        ctx.font = '28px Arial';
+        items.forEach(item => {
+            ctx.fillText('⭐', item.x + item.width/2, item.y + item.height - 2);
+        });
+
+        // 5. 플레이어 캐릭터 그리기
+        // 레트로 몸통 그리기
+        ctx.fillStyle = cfg.bodyColor;
+        ctx.fillRect(player.x, player.y + 35, player.width, 40); // 몸통
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(player.x + 10, player.y + 70, 10, 5); // 왼발
+        ctx.fillRect(player.x + 30, player.y + 70, 10, 5); // 오른발
+
+        // 유저가 올린 얼굴 이미지 합성 (로드 실패시 이모지 대체 작동)
+        try {
+            if (images[selectedChar].complete && images[selectedChar].naturalWidth !== 0) {
+                ctx.drawImage(images[selectedChar], player.x - 5, player.y - 5, 60, 60);
+            } else {
+                ctx.font = '45px Arial';
+                ctx.fillText(selectedChar==='dad'?'👨':selectedChar==='mom'?'👩':selectedChar==='hayun'?'👧':'👶', player.x + 25, player.y + 35);
+            }
+        } catch(e) {
+            ctx.fillStyle = '#e53e3e';
+            ctx.fillRect(player.x, player.y, 50, 40);
+        }
+
+        // 6. 인게임 상단 UI 정보 표시
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(10, 10, 780, 45);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`스테이지: ${cfg.bgName}`, 25, 38);
+        ctx.fillText(`SCORE: ${score}`, 240, 38);
+        
+        // 남은 거리 표시 바 (1km)
+        let displayDist = Math.min(1000, Math.floor(distance));
+        ctx.fillText(`거리: ${displayDist}m / 1000m`, 430, 38);
+        
+        ctx.fillStyle = '#444';
+        ctx.fillRect(630, 23, 140, 16);
+        ctx.fillStyle = '#ffca28';
+        ctx.fillRect(630, 23, (displayDist / 1000) * 140, 16);
+    }
+
+    // 게임 종료 및 랭킹 정렬 화면 전환
+    function endGame() {
+        gameState = 'ending';
+        cancelAnimationFrame(animationFrameId);
+        
+        document.getElementById('finalScore').innerText = score;
+
+        // 가족 고정 랭킹 리스트 생성 (플레이어 점수 삽입 및 내림차순 자동 정렬)
+        let familyScores = [
+            { name: '아빠', score: 18500 },
+            { name: '엄마', score: 16200 },
+            { name: '하윤', score: 21000 },
+            { name: '예은', score: 14800 }
+        ];
+        
+        // 현재 플레이한 캐릭터의 실시간 점수로 갱신
+        let target = familyScores.find(f => f.name === charSettings[selectedChar].name);
+        if(target) target.score = score;
+
+        familyScores.sort((a, b) => b.score - a.score);
+
+        // HTML 동적 바인딩
+        let rankHtml = '<h3 style="margin:0 0 10px 0; text-align:center; color:#ffca28;">🏆 우리 가족 실시간 순위</h3>';
+        familyScores.forEach((playerRank, index) => {
+            let isCurrent = playerRank.name === charSettings[selectedChar].name;
+            rankHtml += `
+                <div class="ranking-item ${isCurrent ? 'rank-highlight' : ''}">
+                    <span>${index + 1}위. ${playerRank.name} ${isCurrent ? '(YOU)' : ''}</span>
+                    <span>${playerRank.score} 점</span>
+                </div>`;
+        });
+        
+        document.getElementById('rankingList').innerHTML = rankHtml;
+        document.getElementById('endingScreen').style.display = 'flex';
+    }
+
+    // 엔딩 창에서 다시 첫 화면 캐릭터 선택창으로 복귀
+    function restartGame() {
+        document.getElementById('endingScreen').style.display = 'none';
+        document.getElementById('startScreen').style.display = 'flex';
+        gameState = 'ready';
+        
+        // 캔버스 초기 초기화선언
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+</script>
+
+</body>
+</html>
