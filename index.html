@@ -598,7 +598,7 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
                 ctx.fillStyle = '#333333'; ctx.font = 'bold 15px Arial'; ctx.fillText(c.name, x + 50, 255);
             });
             ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
-            ctx.fillText("🧱 규칙: 600m 단위 누적 마라톤 레이스! 각 단계별 아빠의 고유 도발/칭찬 한마디 멘트 활성화!", canvas.width / 2, 340);
+            ctx.fillText("🧱 규칙: 스테이지별 마라톤 레이스! 각 단계별 아빠의 고유 도발/칭찬 한마디 멘트 활성화!", canvas.width / 2, 340);
             ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 양손 분할 터치 제어", canvas.width / 2, 370);
 
         } else if (gameState === 'playing' || gameState === 'inputName' || gameState === 'gameover' || gameState === 'goalSuccess') {
