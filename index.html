@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>아빠를 이겨라 이것들아</title>
@@ -53,6 +57,26 @@ body {
 </div>
 
 <script>
+	
+	// 1. Firebase 설정 (본인의 콘솔에서 복사한 값)
+  const firebaseConfig = {
+    apiKey: "AIzaSyD4YM4BJ7tpqvuIKwjizqLHM3YEpUT7GRE",
+    authDomain: "winagappascorebd.firebaseapp.com",
+    databaseURL: "https://winagappascorebd-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "winagappascorebd",
+    storageBucket: "winagappascorebd.firebasestorage.app",
+    messagingSenderId: "948274389608",
+    appId: "1:948274389608:web:9670defcbc0332644711dd",
+    measurementId: "G-5Y77B6ZKB7"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  // Initialize Firebase
+//const app = initializeApp(firebaseConfig);
+//const analytics = getAnalytics(app);
+  // Firebase 설정 끝
+  
 const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 10000];
 //let currentStageTarget = targetDistances[currentStage - 1];
 
@@ -79,7 +103,43 @@ const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 1
     // 리사이즈 및 회전 시 자동 최적화
     window.addEventListener('resize', adjustGameSize);
     window.addEventListener('orientationchange', () => setTimeout(adjustGameSize, 200));
-    
+  
+  // 2. 랭킹 저장 함수 수정
+  function saveLeaderboard(name, score) {
+    const newRankRef = db.ref('rankings').push();
+    newRankRef.set({
+      name: name,
+      score: score,
+      date: `Lv.${currentStage}`,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+// 3. 랭킹 불러오기 (실시간 동기화)
+  /*function loadLeaderboard() {
+    db.ref('rankings').orderByChild('score').limitToLast(5).on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // 객체 형태의 데이터를 배열로 변환하여 랭킹 정렬
+        leaderboard = Object.values(data).sort((a, b) => b.score - a.score);
+      }
+    });
+  }*/
+  
+  function loadLeaderboard() {
+    // 실시간 리스너: 데이터베이스 내용이 바뀔 때마다 자동으로 실행됨
+    db.ref('rankings')
+        .orderByChild('score')
+        .limitToLast(5)
+        .on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // 배열로 변환 후 높은 점수 순으로 정렬
+                leaderboard = Object.values(data).sort((a, b) => b.score - a.score);
+            }
+        });
+}
+
+      
     // 페이지 로드 시 호출
     adjustGameSize();
     function playSound(type) {
@@ -216,7 +276,7 @@ let stageDisplayTimer = 0;
         }
     }
 
-    function loadLeaderboard() {
+    /*function loadLeaderboard() {
         const savedData = localStorage.getItem('kimFamilyCustomLeaderboard');
         if (savedData) { leaderboard = JSON.parse(savedData); } 
         else {
@@ -227,8 +287,25 @@ let stageDisplayTimer = 0;
             ];
             saveLeaderboard();
         }
-    }
-    function saveLeaderboard() { localStorage.setItem('kimFamilyCustomLeaderboard', JSON.stringify(leaderboard)); }
+    }*/
+    
+// 3. 랭킹 불러오기 (실시간 동기화)
+function loadLeaderboard() {
+    db.ref('rankings')
+        .orderByChild('score')
+        .limitToLast(5)
+        .on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Firebase의 데이터를 받아와서 전역 leaderboard 변수에 덮어씌움
+                leaderboard = Object.values(data).sort((a, b) => b.score - a.score);
+            } else {
+                // 데이터가 없을 경우 빈 배열로 초기화
+                leaderboard = [];
+            }
+        });
+}    
+//    function saveLeaderboard() { localStorage.setItem('kimFamilyCustomLeaderboard', JSON.stringify(leaderboard)); }
 
     function triggerMobileLandscapeFullscreen() {
         // 전체화면 기능 제거됨
@@ -278,7 +355,7 @@ let stageDisplayTimer = 0;
         if (!hasLeftMove) { inputStatus.leftPressed = false; inputStatus.rightPressed = false; }
     }
 
-    canvas.addEventListener('mousedown', (e) => handlePointerDown(e.clientX, e.clientY));
+    /*canvas.addEventListener('mousedown', (e) => handlePointerDown(e.clientX, e.clientY));
     canvas.addEventListener('mousemove', (e) => {
         if (gameState !== 'playing') return;
         const rect = canvas.getBoundingClientRect();
@@ -291,10 +368,33 @@ let stageDisplayTimer = 0;
         }
     });
     window.addEventListener('mouseup', () => { inputStatus.leftPressed = false; inputStatus.rightPressed = false; });
+*/
 
-    canvas.addEventListener('touchstart', (e) => {
+// 마우스 제어
+window.addEventListener('mousedown', (e) => {
+    handlePointerDown(e.clientX, e.clientY);
+    if (gameState === 'playing') updateMouseInput(e, true);
+});
+window.addEventListener('mousemove', (e) => {
+    if (gameState === 'playing') updateMouseInput(e);
+});
+window.addEventListener('mouseup', () => {
+    inputStatus.leftPressed = false;
+    inputStatus.rightPressed = false;
+});
+
+
+    //canvas.addEventListener('touchstart', (e) => {
+    window.addEventListener('touchstart', (e) => {
         e.preventDefault(); if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-        if (gameState === 'playing') {
+    // 게임 시작 및 메뉴 제어 처리
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        handlePointerDown(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+    }
+					if (gameState === 'playing') {
+        		processInput(e.touches);
+    			}    
+/*        if (gameState === 'playing') {
             const rect = canvas.getBoundingClientRect();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 let curX = (e.changedTouches[i].clientX - rect.left) * (canvas.width / rect.width);
@@ -303,11 +403,18 @@ let stageDisplayTimer = 0;
             parseTouches(e);
         } else {
             handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
-        }
+        }*/
     }, { passive: false });
 
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouches(e); }, { passive: false });
-    window.addEventListener('touchend', (e) => { if (gameState === 'playing') parseTouches(e); });
+    //canvas.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouches(e); }, { passive: false });
+			window.addEventListener('touchmove', (e) => {
+    		e.preventDefault();
+    		if (gameState === 'playing') processInput(e.touches);
+			}, { passive: false });    
+			window.addEventListener('touchend', (e) => {
+    			if (gameState === 'playing') processInput(e.touches);
+			});			
+    //window.addEventListener('touchend', (e) => { if (gameState === 'playing') parseTouches(e); });
 
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' || e.code === 'ArrowUp') { if (gameState === 'playing') { e.preventDefault(); jump(); } }
@@ -334,6 +441,38 @@ let stageDisplayTimer = 0;
         document.getElementById('nameInputOverlay').style.display = 'none';
         playSound('jump');
     }
+// 입력 처리 함수
+function processInput(touches) {
+    let hasLeft = false;
+    let hasRight = false;
+    let jumping = false;
+
+    for (let i = 0; i < touches.length; i++) {
+        let tX = touches[i].clientX;
+        if (tX >= window.innerWidth / 2) {
+            jumping = true;
+        } else {
+            // 왼쪽 영역 내에서 다시 22% 지점을 기준으로 좌/우 결정
+            if (tX < window.innerWidth * 0.11) hasLeft = true;
+            else hasRight = true;
+        }
+    }
+    
+    inputStatus.leftPressed = hasLeft;
+    inputStatus.rightPressed = hasRight;
+    if (jumping) jump();
+}
+function updateMouseInput(e, isClick = false) {
+    if (e.buttons !== 1) return;
+    if (e.clientX >= window.innerWidth / 2) {
+        if (isClick) jump();
+    } else {
+        inputStatus.leftPressed = (e.clientX < window.innerWidth * 0.11);
+        inputStatus.rightPressed = (e.clientX >= window.innerWidth * 0.11);
+    }
+}
+
+
 
     function jump() {
         if (gameState !== 'playing') return;
@@ -564,17 +703,32 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
         }
     }
 
-    function submitRanking() {
+ /*   function submitRanking() {
         let nameInput = document.getElementById('playerName').value.trim();
         if (!nameInput) nameInput = "익명가족";
         let timeString = `Lv.${currentStage}`; 
         leaderboard.push({ name: nameInput, score: score, date: timeString });
         leaderboard.sort((a, b) => b.score - a.score);
         leaderboard = leaderboard.slice(0, 5);
-        saveLeaderboard();
+        //saveLeaderboard();
+        // 이제 localStorage 대신 서버로 보냅니다.
+    	  saveLeaderboard(nameInput, score);
         document.getElementById('nameInputOverlay').style.display = 'none';
         gameState = 'ending';
-    }
+    }*/
+    
+    function submitRanking() {
+    let nameInput = document.getElementById('playerName').value.trim();
+    if (!nameInput) nameInput = "익명가족";
+    
+    // 이제 서버로만 저장합니다
+    saveLeaderboard(nameInput, score);
+    
+    document.getElementById('nameInputOverlay').style.display = 'none';
+    gameState = 'ending';
+    // 랭킹 화면을 보여주기 위해 loadLeaderboard를 여기서 다시 호출할 필요는 없습니다 
+    // (위에서 .on('value') 리스너를 달았기 때문에 자동 업데이트됩니다)
+}
 
     function render() {
         flashTimer++;
@@ -708,7 +862,12 @@ let currentStageTarget = targetDistances[currentStage - 1];
             ctx.fillStyle = '#ffca28'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
             ctx.fillText("가족 실시간 통합 TOP 5 랭킹", canvas.width / 2, 145);
             
-            leaderboard.forEach((rank, index) => {
+            // 이 부분이 Firebase에서 실시간으로 받아온 leaderboard를 그리는지 확인하세요
+    if (leaderboard.length === 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("등록된 기록이 없습니다.", canvas.width / 2, 200);
+    } else {
+    	leaderboard.forEach((rank, index) => {
                 ctx.fillStyle = '#ffffff'; ctx.font = '14px Arial'; ctx.textAlign = 'left';
                 ctx.fillText(`${index + 1}위.   ${rank.name}`, 180, 185 + (index * 26));
                 ctx.fillStyle = '#ffca28'; ctx.font = 'bold 12px Arial'; ctx.fillText(rank.date, 340, 185 + (index * 26));
@@ -721,6 +880,7 @@ let currentStageTarget = targetDistances[currentStage - 1];
             ctx.fillText("다시 도전하기", canvas.width / 2, 374);
         }
     }
+  }
 
     loadLeaderboard();
     mainLoop();
