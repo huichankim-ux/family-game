@@ -5,20 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>아빠를 이겨라 이것들아</title>
     <style>
-        body {
-            margin: 0; padding: 0; background: #222;
-            font-family: 'Arial', sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; overflow: hidden;
-            user-select: none; -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        #gameContainer {
-            width: 100%; max-width: 800px; aspect-ratio: 16 / 9;
-            background: #000; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            position: relative;
-        }
-        canvas { width: 100%; height: 100%; display: block; background: #000; }
+body {
+        margin: 0; padding: 0; background: #000;
+        font-family: 'Arial', sans-serif;
+        display: flex; justify-content: center; align-items: center;
+        width: 100vw; height: 100vh; overflow: hidden;
+        user-select: none; -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    #gameContainer {
+        width: 100vw; height: 56.25vw; /* 16:9 비율 유지 */
+        max-width: 800px; max-height: 450px;
+        background: #000; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        position: relative;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
         
         #nameInputOverlay {
             display: none; position: absolute;
@@ -56,6 +57,28 @@
     const ctx = canvas.getContext('2d');
     
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// [추가] 화면 비율 최적화 함수
+    function adjustGameSize() {
+        const container = document.getElementById('gameContainer');
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        
+        // 16:9 비율을 유지하며 화면에 꽉 차게 설정
+        if (winW / winH > 16 / 9) {
+            container.style.width = (winH * 16 / 9) + 'px';
+            container.style.height = winH + 'px';
+        } else {
+            container.style.width = winW + 'px';
+            container.style.height = (winW * 9 / 16) + 'px';
+        }
+    }
+
+    // 리사이즈 및 회전 시 자동 최적화
+    window.addEventListener('resize', adjustGameSize);
+    window.addEventListener('orientationchange', () => setTimeout(adjustGameSize, 200));
+    
+    // 페이지 로드 시 호출
+    adjustGameSize();
     function playSound(type) {
         if (audioCtx.state === 'suspended') { audioCtx.resume(); }
         const osc = audioCtx.createOscillator();
@@ -120,7 +143,6 @@
         yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'] }
     };
 
-    // [신규 변경] 단계별 커스텀 골인 대사 배열 매핑
     const stageClearMessages = {
         1: "쉽지 이정도는?",
         2: "풉! 자만하지마",
@@ -145,7 +167,7 @@
     
     let currentStage = 1;
     const maxStage = 10;
-    const stageTargetDistance = 600; // [변경] 단계별 목표 주행 거리를 600m 단위로 설정!
+    const stageTargetDistance = 600;
 
     let player = { 
         x: 120, y: 300, width: 50, height: 75, 
@@ -205,14 +227,7 @@
     function saveLeaderboard() { localStorage.setItem('kimFamilyCustomLeaderboard', JSON.stringify(leaderboard)); }
 
     function triggerMobileLandscapeFullscreen() {
-        const docEl = document.documentElement;
-        try {
-            if (docEl.requestFullscreen) { docEl.requestFullscreen(); }
-            else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(e => console.log("Orientation lock not supported"));
-            }
-        } catch(err) { console.log("Fullscreen restriction"); }
+        // 전체화면 기능 제거됨
     }
 
     function handlePointerDown(clientX, clientY) {
@@ -364,11 +379,9 @@
 
         distance += gameSpeed * 0.05; score += 1;
         
-        // 1단계 기본속도 6.0 세팅, 이후 각 단계 진입 시 기본속도 0.5씩 점진적 고속 보강
         let baseSpeed = 6.0 + ((currentStage - 1) * 0.5); 
         let currentDisplayDistance = Math.floor(distance);
         
-        // [변경] 가속 싱크 주기를 200m 마다 순차적으로 계산 (600m 목표 거리에 부합하도록 200m, 400m 가속 체인 구축)
         let milestoneIndex = Math.floor(currentDisplayDistance / 200) - 1;
         if (milestoneIndex >= 0 && milestoneIndex < 2 && !speedMilestones[milestoneIndex]) {
             speedMilestones[milestoneIndex] = true;
@@ -402,7 +415,6 @@
 
         let onSurface = false; isForcedPushing = false; 
 
-        // 계단식 블록 연산
         for (let i = steps.length - 1; i >= 0; i--) {
             let step = steps[i]; step.x -= gameSpeed;
             if (player.x + player.width > step.x && player.x < step.x + step.width &&
@@ -419,7 +431,6 @@
             if (step.x < -150) steps.splice(i, 1);
         }
 
-        // 공중 발판
         for (let i = 0; i < platforms.length; i++) {
             let plat = platforms[i]; plat.x -= gameSpeed;
             if (player.x + player.width > plat.x && player.x < plat.x + plat.width &&
@@ -443,7 +454,6 @@
             if (isForcedPushing) { gameState = 'gameover'; player.vy = -10; playSound('gameover'); return; }
         }
 
-        // [변경] 골인 체크 연산 라인을 600m 기준으로 즉시 칼같이 발동 정지!
         if (currentDisplayDistance >= stageTargetDistance) {
             distance = stageTargetDistance; gameSpeed = 0;
             gameState = 'goalSuccess';
@@ -451,13 +461,11 @@
             return;
         }
 
-        // 단계별 장애물 밀도 차별화 자동 제어 루틴
         spawnTimer++;
         let baseDelay = 72 - (currentStage * 3.8); 
         let spawnDelay = Math.max(28, baseDelay - (gameSpeed * 1.5));
         if (player.boostTimer > 0) spawnDelay /= 5;
 
-        // 600m 단계 설계에 매칭되도록 550m 전방 시점까지만 스폰 허용 허가
         if (flashTimer % 45 === 0 && currentDisplayDistance < (stageTargetDistance - 50) && bgElements.length < 8) {
             const list = charSettings[selectedChar].decors; const emoji = list[Math.floor(Math.random() * list.length)];
             bgElements.push({ x: 850, y: 35 + Math.random() * 140, text: emoji, size: 24 + Math.floor(Math.random() * 16), scrollFactor: 0.35 + Math.random() * 0.3 });
@@ -495,7 +503,6 @@
         bgElements.forEach(el => el.x -= gameSpeed * el.scrollFactor);
         bgElements = bgElements.filter(el => el.x > -50);
 
-        // [변경] 골인선 진입 연출용 프레임 체크라인 수정
         if (currentDisplayDistance >= (stageTargetDistance - 40) && gameState === 'playing') { goalFlagX -= gameSpeed; }
 
         for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -534,6 +541,7 @@
     }
 
     function render() {
+        flashTimer++;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const cfg = charSettings[selectedChar];
 
@@ -555,7 +563,7 @@
             });
             ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
             ctx.fillText("🧱 규칙: 600m 단위 누적 마라톤 레이스! 각 단계별 아빠의 고유 도발/칭찬 한마디 멘트 활성화!", canvas.width / 2, 340);
-            ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 가로 전체화면 / 양손 분할 터치 제어", canvas.width / 2, 370);
+            ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 양손 분할 터치 제어", canvas.width / 2, 370);
 
         } else if (gameState === 'playing' || gameState === 'inputName' || gameState === 'gameover' || gameState === 'goalSuccess') {
             ctx.fillStyle = cfg.theme; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -568,15 +576,6 @@
 
             ctx.fillStyle = '#1a202c'; ctx.fillRect(0, 375, canvas.width, 75);
             ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 375, canvas.width, 6);
-
-            if (gameState === 'playing' && distance < 150) {
-                ctx.save();
-                ctx.font = 'bold 13px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.textAlign = 'center';
-                ctx.fillText("◀  [왼손] 좌우 무빙 이동 영역  ▶", canvas.width * 0.25, 415);
-                ctx.fillText("▲  [오른손] 점프 구역  ▲", canvas.width * 0.75, 415);
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
-                ctx.beginPath(); ctx.moveTo(canvas.width/2, 375); ctx.lineTo(canvas.width/2, 450); ctx.stroke(); ctx.restore();
-            }
 
             let currentDisplayDistance = Math.floor(distance);
             if (currentDisplayDistance >= (stageTargetDistance - 40)) {
@@ -619,12 +618,10 @@
                 ctx.fillText(messageText, player.x + player.width/2, player.y - 28); ctx.restore();
             }
 
-            // [변경] 완주 대사 텍스트를 커스텀 한마디 지정 대사로 동적 맵핑 드로잉
             if (gameState === 'goalSuccess') {
                 particles.forEach(p => { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180); ctx.fillStyle = p.color; ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore(); });
                 ctx.fillStyle = (flashTimer % 20 < 10) ? '#ffca28' : '#ffffff'; 
                 
-                // 글씨 길이에 맞춰서 폰트 크기 자동 조율 바인딩
                 let currentMsgText = stageClearMessages[currentStage] || "완주 성공!!";
                 ctx.font = currentMsgText.length > 15 ? 'bold 30px Arial' : 'bold 38px Arial'; 
                 ctx.textAlign = 'center';
@@ -635,14 +632,12 @@
                 ctx.fillStyle = '#ff1744'; ctx.font = 'bold 55px Arial'; ctx.textAlign = 'center'; ctx.fillText("💥 탈락! GAME OVER", canvas.width / 2, canvas.height / 2 - 30);
             }
 
-            // 상단 대시보드 (총 누적 600m 단위 계산 매핑식 적용)
             ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(10, 10, 780, 45);
             ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
             ctx.fillStyle = '#ffca28'; ctx.fillText(`STAGE ${currentStage}`, 25, 38); 
             ctx.fillStyle = '#fff'; ctx.fillText(`점수: ${score}`, 135, 38);
             ctx.fillText(`속도: ${gameSpeed.toFixed(1)} km/h`, 255, 38); 
             
-            // 600m 누적 시스템 거리 표기법 개조
             let accumBaseDist = (currentStage - 1) * stageTargetDistance;
             ctx.fillText(`거리: ${accumBaseDist + currentDisplayDistance}m / ${currentStage * stageTargetDistance}m`, 385, 38);
             
@@ -677,6 +672,5 @@
     loadLeaderboard();
     mainLoop();
 </script>
-
 </body>
 </html>
