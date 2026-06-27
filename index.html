@@ -405,17 +405,38 @@ window.addEventListener('mouseup', () => {
 });
 
 
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // 기본 스크롤/줌 완전 차단
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+    
+    // 점프 여부 판단
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        let touch = e.changedTouches[i];
+        let rect = canvas.getBoundingClientRect();
+        let tX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        
+        // 오른쪽 절반 영역 터치 시 무조건 점프
+        if (tX >= canvas.width / 2) {
+            jump();
+        }
+    }
+    processInput(e.touches);
+}, { passive: false });
+
+
+
+
     //canvas.addEventListener('touchstart', (e) => {
     window.addEventListener('touchstart', (e) => {
 
 
-//        e.preventDefault(); 
-				if (gameState !== 'playing') {
+        e.preventDefault();  // 기본 스크롤/줌 완전 차단
+/*				if (gameState !== 'playing') {
 		        // e.preventDefault(); // 이 줄을 제거하거나 조건부로 변경
 		    } else {
 		        e.preventDefault();
 		    }
-
+*/
 
 
         if (audioCtx.state === 'suspended') { audioCtx.resume(); }
@@ -429,7 +450,7 @@ window.addEventListener('mouseup', () => {
     			}    
 */
         if (gameState === 'playing') {
-            const rect = canvas.getBoundingClientRect();
+            const rect = window.getBoundingClientRect();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 let curX = (e.changedTouches[i].clientX - rect.left) * (window.width / rect.width);
                 if (curX >= window.width / 2) { jump(); } 
@@ -521,13 +542,13 @@ function updateMouseInput(e, isClick = false) {
         
   const now = Date.now();
     // 0.1초 내의 중복 터치 무시 (더블 점프 튕김 방지)
-    if (now - lastJumpTime < 100) return;      
+    if (now - lastJumpTime < 60) return;      
         
         
         if (player.isGrounded || player.jumpCount < player.maxJumps) {
             let power = player.boostTimer > 0 ? player.jumpPower * 1.25 : player.jumpPower;
             if (player.jumpCount === 0) { player.vy = power; playSound('jump'); } 
-            else { player.vy = power * 0.88; playSound('doubleJump'); }
+            else { player.vy = power * 0.95; playSound('doubleJump'); }
             player.jumpCount++; player.isGrounded = false;
             lastJumpTime = now; // 점프 시점 기록
         }
