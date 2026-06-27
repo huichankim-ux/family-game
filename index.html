@@ -346,6 +346,15 @@ function loadLeaderboard() {
                     }
                 });
             }
+    				// [추가] 캐릭터 선택 화면에서 스코어보드 보기 버튼 (하단 중앙)
+            		if (clickX >= 300 && clickX <= 500 && clickY >= 380 && clickY <= 420) {
+                		gameState = 'scoreboard';
+		            }
+        } else if (gameState === 'scoreboard') {
+            // [추가] 스코어보드에서 다시 캐릭터 선택 화면으로 (닫기)
+            if (clickX >= 300 && clickX <= 500 && clickY >= 380 && clickY <= 420) {
+                gameState = 'ready';
+            }
         } else if (gameState === 'playing') {
             if (clickX >= 690 && clickX <= 780 && clickY >= 18 && clickY <= 48) { gameState = 'ready'; return; }
         } else if (gameState === 'ending' || gameState === 'gameover') {
@@ -757,7 +766,29 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
     // 랭킹 화면을 보여주기 위해 loadLeaderboard를 여기서 다시 호출할 필요는 없습니다 
     // (위에서 .on('value') 리스너를 달았기 때문에 자동 업데이트됩니다)
 }
+		function renderScoreboard() {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffca28'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center';
+        ctx.fillText("🏆 명예의 전당", canvas.width / 2, 60);
+        
+        // 랭킹 표시
+        leaderboard.forEach((r, i) => {
+            ctx.fillStyle = '#ffffff'; ctx.font = '18px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${i+1}위. ${r.name} (${r.date})`, 250, 120 + i*40);
+            ctx.textAlign = 'right';
+            ctx.fillText(`${r.score}점`, 550, 120 + i*40);
+        });
 
+        // 닫기/돌아가기 버튼
+        ctx.fillStyle = '#ff5722';
+        ctx.fillRect(300, 380, 200, 40);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+        ctx.fillText("돌아가기", canvas.width / 2, 408);
+    }
+    
+    
     function render() {
         flashTimer++;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -780,9 +811,16 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
                 ctx.fillStyle = '#333333'; ctx.font = 'bold 15px Arial'; ctx.fillText(c.name, x + 50, 255);
             });
             ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
-            ctx.fillText("🧱 규칙: 스테이지별 마라톤 레이스! 각 단계별 아빠의 고유 도발/칭찬 한마디 멘트 활성화!", canvas.width / 2, 340);
+            ctx.fillText("🌟:1,000점 🎁:5,000점 🧱:-150점 💣:-10,000점 🌟:무적모드", canvas.width / 2, 340);
             ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 양손 분할 터치 제어", canvas.width / 2, 370);
+						// [추가] 스코어보드 보기 버튼
+		        ctx.fillStyle = '#ff5722';
+		        ctx.fillRect(300, 380, 200, 40);
+		        ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Arial';
+		        ctx.fillText("📊 전체 랭킹 보기", canvas.width / 2, 408);            
 
+        } else if (gameState === 'scoreboard') {
+            renderScoreboard();
         } else if (gameState === 'playing' || gameState === 'inputName' || gameState === 'gameover' || gameState === 'goalSuccess') {
             ctx.fillStyle = cfg.theme; ctx.fillRect(0, 0, canvas.width, canvas.height);
             
@@ -900,14 +938,14 @@ let currentStageTarget = targetDistances[currentStage - 1];
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'; ctx.fillRect(150, 120, 500, 195);
             ctx.fillStyle = '#ffca28'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
-            ctx.fillText("가족 실시간 통합 TOP 5 랭킹", canvas.width / 2, 145);
+            ctx.fillText("실시간 통합 TOP 5 랭킹", canvas.width / 2, 145);
             
             // 이 부분이 Firebase에서 실시간으로 받아온 leaderboard를 그리는지 확인하세요
-    if (leaderboard.length === 0) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText("등록된 기록이 없습니다.", canvas.width / 2, 200);
-    } else {
-    	leaderboard.forEach((rank, index) => {
+					    if (leaderboard.length === 0) {
+					        ctx.fillStyle = '#ffffff';
+					        ctx.fillText("등록된 기록이 없습니다.", canvas.width / 2, 200);
+					    } else {
+					    	leaderboard.forEach((rank, index) => {
                 ctx.fillStyle = '#ffffff'; ctx.font = '14px Arial'; ctx.textAlign = 'left';
                 ctx.fillText(`${index + 1}위.   ${rank.name}`, 180, 185 + (index * 26));
                 ctx.fillStyle = '#ffca28'; ctx.font = 'bold 12px Arial'; ctx.fillText(rank.date, 340, 185 + (index * 26));
