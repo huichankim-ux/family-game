@@ -189,6 +189,7 @@ body {
     let speedMilestones = [false, false, false, false]; 
 
     let particles = [];
+let stageDisplayTimer = 0;	
     let goalFinishTimer = 0;
     let goalFlagX = 950; 
 
@@ -341,6 +342,14 @@ body {
     function mainLoop() { update(); render(); requestAnimationFrame(mainLoop); }
 
     function update() {
+// 스테이지 시작 시 타이머 초기화 (playing 진입 시점에 호출)
+    if (gameState === 'playing' && stageDisplayTimer === 0 && distance === 0) {
+        stageDisplayTimer = 120; // 2초 (60프레임 * 2)
+    }
+
+    if (stageDisplayTimer > 0) {
+        stageDisplayTimer--;
+    }
         if (gameState === 'gameover') {
             deathAnimateTimer++; player.vy += 0.6; player.y += player.vy; player.x -= 2;
             if (deathAnimateTimer > 90) {
@@ -578,6 +587,18 @@ body {
             ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 375, canvas.width, 6);
 
             let currentDisplayDistance = Math.floor(distance);
+// [추가] 스테이지 표시 로직
+    if (stageDisplayTimer > 0) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // 배경 어둡게
+        
+        ctx.fillStyle = '#ffca28';
+        ctx.font = 'bold 60px Arial';
+        ctx.textAlign = 'center';
+        
+        let stageName = currentStage === 10 ? "마지막 단계" : `${currentStage}단계`;
+        ctx.fillText(stageName, canvas.width / 2, canvas.height / 2 + 20);
+    }
             if (currentDisplayDistance >= (stageTargetDistance - 40)) {
                 ctx.save(); ctx.lineWidth = 6; ctx.strokeStyle = '#ffffff';
                 ctx.beginPath(); ctx.moveTo(goalFlagX, 150); ctx.lineTo(goalFlagX, 375); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.fillRect(goalFlagX, 150, 60, 40);
