@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kim's Family Go!</title>
+    <title>아빠를 이겨라 이것들아</title>
     <style>
         body {
             margin: 0; padding: 0; background: #222;
@@ -129,8 +129,6 @@
     
     let obstacles = []; let items = []; let platforms = []; let steps = []; 
     let spawnTimer = 0; let flashTimer = 0; let deathAnimateTimer = 0;
-    
-    // [추가] 장애물에 의해 강제로 뒤로 밀리고 있는 중인지를 추적하는 플래그 변수
     let isForcedPushing = false; 
 
     let inputStatus = { leftPressed: false, rightPressed: false };
@@ -262,7 +260,7 @@
         player.y += player.vy;
 
         let onSurface = false;
-        isForcedPushing = false; // 매 프레임마다 장애물 밀림 감지 변수 초기화
+        isForcedPushing = false; 
 
         // 계단식 블록 연산
         for (let i = steps.length - 1; i >= 0; i--) {
@@ -275,9 +273,8 @@
                 if (player.y + player.height - player.vy <= step.y + 12 && player.vy >= 0) {
                     player.y = step.y - player.height; player.vy = 0; player.isGrounded = true; player.jumpCount = 0; onSurface = true;
                 } else {
-                    // 정면 충돌하여 스크롤에 강제로 밀리는 판정
                     player.x -= (gameSpeed + 1.5); 
-                    isForcedPushing = true; // [중요] 장애물에 의해 밀리는 중임을 표시!
+                    isForcedPushing = true; 
                     if (flashTimer % 12 === 0) playSound('pushAlert'); 
                 }
             }
@@ -308,17 +305,14 @@
             }
         }
 
-        // --- [중요 보정] 요청하신 탈락/유지 분기 조건 결합 ---
         if (player.x <= 0) {
-            player.x = 0; // x좌표 고정
+            player.x = 0; 
             if (isForcedPushing) {
-                // 1. 장애물에 밀려 강제로 끝 벽에 도달했을 때만 -> 가차 없이 탈락!
                 gameState = 'gameover';
                 player.vy = -10;
                 playSound('gameover');
                 return;
             }
-            // 2. 플레이어 조작에 의해 스스로 왼편에 닿았을 땐 -> 탈락하지 않고 아무 일 없이 패스 진행!
         }
 
         // 스폰 관리
@@ -407,7 +401,8 @@
         if (gameState === 'ready') {
             ctx.fillStyle = '#3a5f7d'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#ffca28'; ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
-            ctx.fillText("KIM'S FAMILY GO!", canvas.width / 2, 70);
+            // [변경] 게임 메인 타이틀 수정 완료
+            ctx.fillText("아빠를 이겨라 이것들아", canvas.width / 2, 70);
             ctx.fillStyle = '#ffffff'; ctx.font = '18px Arial';
             ctx.fillText("함께 달릴 캐릭터의 얼굴을 마우스나 손가락으로 누르세요!", canvas.width / 2, 120);
 
@@ -472,7 +467,6 @@
                 else { ctx.font = '45px Arial'; ctx.fillText(selectedChar==='dad'?'👨':selectedChar==='mom'?'👩':selectedChar==='hayun'?'👧':'👶', player.x + 25, player.y + 32); }
             } catch(e) {}
 
-            // 탈락 모션 연출 추가
             if (gameState === 'gameover') {
                 ctx.fillStyle = '#ff1744'; ctx.font = 'bold 55px Arial'; ctx.textAlign = 'center';
                 ctx.fillText("💥 탈락! GAME OVER", canvas.width / 2, canvas.height / 2 - 30);
@@ -513,7 +507,7 @@
             
             leaderboard.forEach((rank, index) => {
                 ctx.fillStyle = '#ffffff'; ctx.font = '14px Arial'; ctx.textAlign = 'left';
-                ctx.fillText(`${index + 1}位.   ${rank.name}`, 180, 185 + (index * 26));
+                ctx.fillText(`${index + 1}위.   ${rank.name}`, 180, 185 + (index * 26));
                 ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.fillText(rank.date, 340, 185 + (index * 26));
                 ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'right';
                 ctx.fillText(`${rank.score} 점`, 620, 185 + (index * 26));
