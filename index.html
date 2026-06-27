@@ -60,7 +60,7 @@ body {
             <p style="color: #48bb78; font-weight: bold;">최종 점수: <span id="overlayScore">0</span>점</p>
             <input type="text" id="playerName" placeholder="이름을 입력하세요" maxlength="8">
             <br>
-            <button onclick="submitRanking() ">랭킹 등록하기</button>
+            <button onclick="submitRanking()" ontouchend="submitRanking(); event.preventDefault();">랭킹 등록하기</button>
         </div>
     </div>
 </div>
@@ -728,6 +728,10 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
     }*/
     
     function submitRanking() {
+    	// 1. 이벤트 전파 방지 (모바일에서 중요)
+    event.stopPropagation();
+    event.preventDefault();
+    
     let nameInput = document.getElementById('playerName').value.trim();
     if (!nameInput) nameInput = "익명가족";
     
@@ -738,6 +742,9 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
     gameState = 'ending';
     // 랭킹 화면을 보여주기 위해 loadLeaderboard를 여기서 다시 호출할 필요는 없습니다 
     // (위에서 .on('value') 리스너를 달았기 때문에 자동 업데이트됩니다)
+    
+    // 입력창 초기화
+    document.getElementById('playerName').value = "";
 }
 
     function render() {
@@ -891,6 +898,18 @@ let currentStageTarget = targetDistances[currentStage - 1];
         }
     }
   }
+  
+  // 오버레이가 보일 때 캔버스 이벤트를 차단하거나, 
+// 오버레이 내부 터치는 오버레이 내에서만 처리되도록 수정
+document.getElementById('nameInputOverlay').addEventListener('touchstart', (e) => {
+    e.stopPropagation(); 
+}, { passive: false });
+
+document.getElementById('nameInputOverlay').addEventListener('touchend', (e) => {
+    e.stopPropagation();
+}, { passive: false });
+	
+/*	
 // 스크립트 하단에 추가
 document.getElementById('playerName').addEventListener('touchstart', (e) => {
     e.stopPropagation(); // 상위(Canvas)로 이벤트가 전파되지 않게 함
@@ -898,7 +917,8 @@ document.getElementById('playerName').addEventListener('touchstart', (e) => {
 
 document.getElementById('playerName').addEventListener('click', (e) => {
     e.target.focus();
-});
+});*/
+
 
 
     loadLeaderboard();
