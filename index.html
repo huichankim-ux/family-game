@@ -402,32 +402,22 @@ window.addEventListener('mouseup', () => {
     for (let i = 0; i < e.changedTouches.length; i++) {
         //handlePointerDown(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
     }
-					if (gameState === 'playing') {
-//        		processInput(e.touches);
-						for (let i = 0; i < e.changedTouches.length; i++) {
-				        const t = e.changedTouches[i];
-				        
-				        // 1. 점프 제어 (화면 오른쪽 절반 터치)
-				        if (t.clientX >= window.innerWidth / 2) {
-				            jump(); 
-				        } 
-				        // 2. 메뉴 버튼/이동 제어
-				        else {
-				            handlePointerDown(t.clientX, t.clientY);
-				        }
-				    }
-    			}    
+/*					if (gameState === 'playing') {
+        		processInput(e.touches);
 
-/*        if (gameState === 'playing') {
+    			}    
+*/
+        if (gameState === 'playing') {
             const rect = canvas.getBoundingClientRect();
             for (let i = 0; i < e.changedTouches.length; i++) {
-                let curX = (e.changedTouches[i].clientX - rect.left) * (canvas.width / rect.width);
-                if (curX >= canvas.width / 2) { jump(); } 
+                let curX = (e.changedTouches[i].clientX - rect.left) * (window.width / rect.width);
+                if (curX >= window.width / 2) { jump(); } 
             }
             parseTouches(e);
         } else {
-            handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
-        }*/
+            //handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+            handlePointerDown(t.clientX, t.clientY);
+        }
     }, { passive: false });
 
     //canvas.addEventListener('touchmove', (e) => { e.preventDefault(); parseTouches(e); }, { passive: false });
