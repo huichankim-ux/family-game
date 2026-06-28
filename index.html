@@ -1059,7 +1059,7 @@ ctx.fillRect(685, 24, progressRatio * 95, 16);
         } else if (gameState === 'ending') {
             ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#ffca28'; ctx.font = 'bold 32px Arial'; ctx.textAlign = 'center';
-            ctx.fillText("💀 "+currentStage+"단계 도전실패! 💀 최종 스코어 : "+score, canvas.width / 2, 60);
+            ctx.fillText("💀 "+currentStage+"단계 도전실패! 💀 최종 스코어 : "+score.toLocaleString('ko-KR'), canvas.width / 2, 60);
 	//                document.getElementById('overlayTitle').innerText = "💀 미션 탈락! 💀";
 	//                document.getElementById('overlaySub').innerText = `Stage ${currentStage}에서 멈췄습니다.`;
 	//                document.getElementById('overlayScore').innerText = score;
