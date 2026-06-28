@@ -77,7 +77,8 @@ body {
 //const analytics = getAnalytics(app);
   // Firebase 설정 끝
   
-const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 10000];
+const targetDistances = [1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7000, 10000,200000,300000,400000,500000,1000000];
+//const targetDistances = [200, 50, 50, 50, 50, 50, 50, 50, 50, 50,50,50,50,50,50];
 //let currentStageTarget = targetDistances[currentStage - 1];
 
     const canvas = document.getElementById('gameCanvas');
@@ -93,7 +94,34 @@ let touchControl = {
     isMoving: false
 };    
     
-    
+    // 게임설정
+    let currentStage = 1;
+    let shakeTimer = 0; // 부딪힌 후 흔들림 효과를 유지할 타이머
+    const maxStage = 15; //최대 스테이지
+    let stageTargetDistance = targetDistances[0];
+    const stageBonus = {
+        5: 100000,
+        10: 500000,
+        15: 1000000
+    };
+		 const stageClearMessages = {
+        1: "쉽지 이정도는?",
+        2: "풉! 자만하지마",
+        3: "쫌 하네? 후훗",
+        4: "다음 판에는 보너스 점수가 있단다",
+        5: "",
+        6: "이제부턴 쉽지 않을걸?",
+        7: "여기 까지만 해도 잘 한거임",
+        8: "이 다음 단계 통과 하면 인정!!",
+        9: "다음판 보너스 50만점!!!",
+        10: "",
+        11: "준비해라 이제 부터 헬모드다",
+        12: "이것도 통과하다니!!!",
+        13: "2판만 더 통과하면 보너스 100만점!!",
+        14: "자 이제 마지막 단계다!",
+        15: "",
+    };
+   
     
 // [추가] 화면 비율 최적화 함수
     function adjustGameSize() {
@@ -224,19 +252,7 @@ let touchControl = {
         yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'] }
     };
 
-    const stageClearMessages = {
-        1: "쉽지 이정도는?",
-        2: "풉! 자만하지마",
-        3: "쫌 하네? 후훗",
-        4: "어쭈 이것봐라?",
-        5: "이제부턴 쉽지 않을걸?",
-        6: "아빠를 이길라고?",
-        7: "준비해라 이제 부터 헬모드다",
-        8: "이 다음 단계 통과 하면 인정!!",
-        9: "자 이제 마지막 단계다!",
-        10: "아빠가 졌다 이것들아. 잘했어! 멋져!!!"
-    };
-
+      
     const images = {};
     Object.keys(charSettings).forEach(key => {
         images[key] = new Image(); images[key].src = charSettings[key].imgUrl;
@@ -245,11 +261,7 @@ let touchControl = {
     let gameState = 'ready'; 
     let selectedChar = 'dad';
     let score = 0; let distance = 0; let gameSpeed = 6;
-    
-    let currentStage = 1;
-    const maxStage = 10;
-    const stageTargetDistance = 600;
-
+ 
     let player = { 
         x: 120, y: 300, width: 50, height: 75, 
         vy: 0, gravity: 0.72, maxFallingSpeed: 13, 
@@ -270,7 +282,7 @@ let touchControl = {
     let speedMilestones = [false, false, false, false]; 
 
     let particles = [];
-let stageDisplayTimer = 0;	
+		let stageDisplayTimer = 0;	
     let goalFinishTimer = 0;
     let goalFlagX = 950; 
 
@@ -511,9 +523,9 @@ window.addEventListener('touchend', (e) => {
     function mainLoop() { update(); render(); requestAnimationFrame(mainLoop); }
 
     function update() {
-// 스테이지 시작 시 타이머 초기화 (playing 진입 시점에 호출)
-if (gameState === 'playing' && stageDisplayTimer === 0 && distance === 0) {
-            stageDisplayTimer = 120; // 2초 (60프레임 * 2)
+				// 스테이지 시작 시 타이머 초기화 (playing 진입 시점에 호출)
+				if (gameState === 'playing' && stageDisplayTimer === 0 && distance === 0) {
+				            stageDisplayTimer = 120; // 2초 (60프레임 * 2)
         }
 
         if (stageDisplayTimer > 0) {
@@ -531,7 +543,7 @@ if (gameState === 'playing' && stageDisplayTimer === 0 && distance === 0) {
             return;
         }
         
-if (gameState === 'goalSuccess') {
+				if (gameState === 'goalSuccess') {
             goalFinishTimer++;
             particles.forEach(p => { p.y += p.speedY; p.x += p.speedX; p.rotation += p.rotSpeed; });
             
@@ -539,13 +551,21 @@ if (gameState === 'goalSuccess') {
                 if (currentStage < maxStage) {
                     currentStage++;
                     distance = 0; // [유지] 스테이지 이동 시 거리 초기화
-                    goalFlagX = 950; goalFinishTimer = 0;
+//                    goalFlagX = 950; 
+										goalFlagX = canvas.width + 100;
+                    goalFinishTimer = 0;
                     speedMilestones = [false, false, false, false]; isMessageForced = false;
                     obstacles = []; steps = []; items = []; platforms = []; particles = []; bgElements = [];
-                    gameState = 'playing';
+			               if(stageBonus[currentStage] > 0){
+			                	let bonusPoint = stageBonus[currentStage].toLocaleString('ko-KR'); 
+//			                	score += stageBonus[currentStage];
+			     	           	stageClearMessages[currentStage] = "🎉 "+currentStage+"단계 정복! 🎉 "+bonusPoint+"포인트 획득 !!";
+//			      	         	stageBonus[currentStage] = 0;
+			                }
+                   gameState = 'playing';
                 } else {
                     gameState = 'inputName';
-                    document.getElementById('overlayTitle').innerText = "🎉 10단계 완전 정복! 🎉";
+                    document.getElementById('overlayTitle').innerText = "🎉 "+maxStage+"단계 완전 정복! 🎉";
                     document.getElementById('overlaySub').innerText = "위대한 주행 기록 달성 완료!";
                     document.getElementById('overlayScore').innerText = score;
                     document.getElementById('nameInputOverlay').style.display = 'flex';
@@ -556,7 +576,16 @@ if (gameState === 'goalSuccess') {
         
        if (gameState !== 'playing') return;
 
-        distance += gameSpeed * 0.10; 
+       distance += gameSpeed * 0.10; 
+// 수정:
+/*
+				if (distance < currentStageTarget) {
+				    distance += gameSpeed * 0.10;
+				} else if (distance > currentStageTarget) {
+					distance = currentStageTarget;
+				}
+				*/
+//거리게이지 수정				
         score += 1;  
         // 1. 기본 속도 결정 (스테이지가 올라갈수록 0.5씩 증가)      
         let baseSpeed = 6.0 + ((currentStage - 1) * 1.0); 
@@ -644,17 +673,41 @@ if (gameState === 'goalSuccess') {
         } */
 
 // 스테이지마다 목표 거리를 다르게 설정 (예: 1단계 600m, 2단계 700m, ... 10단계 1500m)
-let currentStageTarget = targetDistances[currentStage - 1];
+				let currentStageTarget = targetDistances[currentStage - 1];
 
-    if (currentDisplayDistance >= currentStageTarget) {
-        distance = currentStageTarget; 
-        gameSpeed = 0;
-        gameState = 'goalSuccess';
-        createConfetti(); 
-        playSound('fanfare');
-        return;
-    }
+// [삭제 또는 주석처리] 기존 거리 기준 완주 로직
+/*
+		    if (currentDisplayDistance >= currentStageTarget) {
+		        distance = currentStageTarget; 
+		        gameSpeed = 0;
+		        gameState = 'goalSuccess';
+		        createConfetti(); 
+		        playSound('fanfare');
+		        return;
+		    }
+*/		    
+				// [추가] 깃발 충돌 판정 로직
+				// 깃발의 너비/높이를 가정 (예: 폭 60px, 위치 goalFlagX)
+				const goalWidth = 60;
+				const goalHeight = 225; // 150(y)에서 375(y)까지
+				const goalY = 150;
 
+				if (gameState === 'playing' && 
+				    player.x + player.width > goalFlagX && 
+				    player.x < goalFlagX + goalWidth &&
+				    player.y + player.height > goalY && 
+				    player.y < goalY + goalHeight) {
+				    
+				    gameSpeed = 0; // 멈춤
+				    gameState = 'goalSuccess';
+				    createConfetti(); 
+				    playSound('fanfare');
+				    return;
+				}else if (gameState === 'playing' && goalFlagX < -50) {
+				    // 강제 게임오버 또는 깃발 위치를 다시 앞으로 소환하는 로직 필요
+				    gameState = 'gameover'; 
+				    playSound('gameover');
+				}
 
         spawnTimer++;
         let baseDelay = 72 - (currentStage * 3.8); 
@@ -714,14 +767,17 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
             let obs = obstacles[i]; obs.x -= gameSpeed;
             if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
                 if (player.boostTimer > 0) { obstacles.splice(i, 1); continue; }
+            		// [추가] 부딪혔을 때 흔들림 효과 시작 (10프레임 동안 유지)
                 if (obs.type === 'bomb') {
 //						        score = Math.floor(score / 2);
 										score = Math.max(0, score - 10000)
 						        playSound('bomb'); // 폭발음 재생
 						        showSpeechMessage("앗! 폭탄이다!");
+  		  						shakeTimer = 60; //흔들릴 시간 설정
 						    } else {
-                		score = Math.max(0, score - 150); playSound('hit'); 
+                		score = Math.max(0, score - 1500); playSound('hit'); 
 		                if (!isMessageForced) showSpeechMessage("아야!"); 
+	    							shakeTimer = 20; //흔들릴 시간 설정
                 }
                 obstacles.splice(i, 1); continue;
             }
@@ -811,7 +867,7 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
                 ctx.fillStyle = '#333333'; ctx.font = 'bold 15px Arial'; ctx.fillText(c.name, x + 50, 255);
             });
             ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
-            ctx.fillText("🌟:1,000점 🎁:5,000점 🧱:-150점 💣:-10,000점 🌟:무적모드", canvas.width / 2, 340);
+            ctx.fillText("🌟:1,000점 🎁:5,000점 🧱:-1,500점 💣:-10,000점 🌟:무적모드", canvas.width / 2, 340);
             ctx.fillText("🕹️ PC: A, D(이동), 스페이스바(2단점프) | 📱 모바일: 양손 분할 터치 제어", canvas.width / 2, 370);
 						// [추가] 스코어보드 보기 버튼
 		        ctx.fillStyle = '#ff5722';
@@ -834,19 +890,20 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
             ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 375, canvas.width, 6);
 
             let currentDisplayDistance = Math.floor(distance);
-// [추가] 스테이지 표시 로직
-    if (stageDisplayTimer > 0) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height); // 배경 어둡게
-        
-        ctx.fillStyle = '#ffca28';
-        ctx.font = 'bold 60px Arial';
-        ctx.textAlign = 'center';
-        
-        let stageName = currentStage === 10 ? "마지막 단계" : `${currentStage}단계`;
-        ctx.fillText(stageName, canvas.width / 2, canvas.height / 2 + 20);
-    }
-            if (currentDisplayDistance >= (stageTargetDistance - 40)) {
+				// [추가] 스테이지 표시 로직
+				    if (stageDisplayTimer > 0) {
+				        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+				        ctx.fillRect(0, 0, canvas.width, canvas.height); // 배경 어둡게
+				        
+				        ctx.fillStyle = '#ffca28';
+				        ctx.font = 'bold 60px Arial';
+				        ctx.textAlign = 'center';
+				        
+				        let stageName = currentStage === maxStage ? "마지막 단계" : `${currentStage}단계`;
+				        ctx.fillText(stageName, canvas.width / 2, canvas.height / 2 + 20);
+				    }
+//            if (currentDisplayDistance >= (stageTargetDistance - 40)) {
+						if (goalFlagX > -100) {
                 ctx.save(); ctx.lineWidth = 6; ctx.strokeStyle = '#ffffff';
                 ctx.beginPath(); ctx.moveTo(goalFlagX, 150); ctx.lineTo(goalFlagX, 375); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.fillRect(goalFlagX, 150, 60, 40);
                 ctx.fillStyle = '#000000'; ctx.fillRect(goalFlagX, 150, 15, 13); ctx.fillRect(goalFlagX + 30, 150, 15, 13); ctx.fillRect(goalFlagX + 15, 163, 15, 14); ctx.fillRect(goalFlagX + 45, 163, 15, 14); ctx.fillRect(goalFlagX, 177, 15, 13); ctx.fillRect(goalFlagX + 30, 177, 15, 13);
@@ -885,11 +942,43 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
             ctx.fillRect(player.x, player.y + 35, player.width, 40);
             ctx.fillStyle = '#ffffff'; ctx.fillRect(player.x + 8, player.y + 70, 12, 5); ctx.fillRect(player.x + 30, player.y + 70, 12, 5);
 
-            try {
+/*            try {
                 if (images[selectedChar].complete && images[selectedChar].naturalWidth !== 0) { ctx.drawImage(images[selectedChar], player.x - 5, player.y - 5, 60, 60); } 
                 else { ctx.font = '45px Arial'; ctx.fillText(selectedChar==='dad'?'👨':selectedChar==='mom'?'👩':selectedChar==='hayun'?'👧':'👶', player.x + 25, player.y + 32); }
             } catch(e) {}
-
+*/
+						// 2. 이 부분을 아래 코드로 완전히 교체하세요
+						try {
+						    ctx.save(); 
+						    
+						    // 회전 중심점 설정 (캐릭터 중앙)
+						    let centerX = player.x + player.width / 2; 
+						    let centerY = player.y + player.height / 2 - 10;
+						    
+						    ctx.translate(centerX, centerY);
+						    
+						    // shakeTimer가 있을 때만 회전 효과 적용
+						    if (shakeTimer > 0) {
+//						        let angle = (shakeTimer % 2 === 0) ? 0.26 : -0.26; // 약 15도 흔들림
+//										let angle = (Math.floor(shakeTimer / 3) % 2 === 0) ? 0.26 : -0.26;
+										// shakeTimer를 사용하여 sin 파동을 만듭니다 (좌우 15도 범위)
+								    // shakeTimer가 클수록 더 많이 흔들리고 서서히 멈춥니다.
+								    let angle = Math.sin(shakeTimer * 0.5) * 0.26;
+    				        ctx.rotate(angle);
+						        shakeTimer--;
+						    }
+						    
+						    if (images[selectedChar].complete && images[selectedChar].naturalWidth !== 0) {
+						        ctx.drawImage(images[selectedChar], -30, -30, 60, 60); 
+						    } else {
+						        ctx.font = '45px Arial';
+						        ctx.textAlign = 'center';
+						        ctx.fillText(selectedChar==='dad'?'👨':selectedChar==='mom'?'👩':selectedChar==='hayun'?'👧':'👶', 0, 15);
+						    }
+						    
+						    ctx.restore();
+						} catch(e) {}
+	
             if ((messageTimer > 0 || player.boostTimer > 0) && (gameState === 'playing' || gameState === 'goalSuccess')) {
                 ctx.save(); ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; let textWidth = ctx.measureText(messageText).width;
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.strokeStyle = isMessageForced ? '#ff1744' : '#ffca28'; ctx.lineWidth = 2; let boxX = player.x + player.width/2 - (textWidth + 16)/2; let boxY = player.y - 45;
@@ -903,6 +992,12 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
                 ctx.fillStyle = (flashTimer % 20 < 10) ? '#ffca28' : '#ffffff'; 
                 
                 let currentMsgText = stageClearMessages[currentStage] || "완주 성공!!";
+                if(stageBonus[currentStage] > 0){
+//                	let bonusPoint = stageBonus[currentStage].toLocaleString('ko-KR'); 
+                	score += stageBonus[currentStage];
+//     	           	currentMsgText = "🎉 "+currentStage+"단계 정복! 🎉 "+bonusPoint+"포인트 획득 !!";
+      	         	stageBonus[currentStage] = 0;
+                }
                 ctx.font = currentMsgText.length > 15 ? 'bold 30px Arial' : 'bold 38px Arial'; 
                 ctx.textAlign = 'center';
                 ctx.fillText(currentMsgText, canvas.width / 2, canvas.height / 2);
@@ -918,18 +1013,27 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
             ctx.fillStyle = '#fff'; ctx.fillText(`점수: ${score}`, 135, 38);
             ctx.fillText(`속도: ${gameSpeed.toFixed(1)} km/h`, 255, 38); 
             
-            let accumBaseDist = (currentStage - 1) * stageTargetDistance;
+// [삭제할 부분]           let accumBaseDist = (currentStage - 1) * stageTargetDistance;
 
   //          ctx.fillText(`거리: ${accumBaseDist + currentDisplayDistance}m / ${currentStage * stageTargetDistance}m`, 385, 38);
 //	    ctx.fillText(`거리: ${currentDisplayDistance}m / ${stageTargetDistance}m`, 385, 38);           
-let currentStageTarget = targetDistances[currentStage - 1];
-	    ctx.fillText(`거리: ${currentDisplayDistance}m / ${currentStageTarget}m`, 385, 38);
+			let currentStageTarget = targetDistances[currentStage - 1];
+//깃발	    ctx.fillText(`거리: ${currentDisplayDistance}m / ${currentStageTarget}m`, 385, 38);
+// [삽입할 부분]
+// 위에서 계산된 currentStageTarget을 사용하여 거리 표시
+let displayDist = Math.min(Math.floor(distance), currentStageTarget);
+ctx.fillStyle = '#ffffff'; // 색상 설정이 없다면 추가해 주세요
+ctx.fillText(`거리: ${displayDist}m / ${currentStageTarget}m`, 385, 38);
 
             if (player.boostTimer > 0) { ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 13px Arial'; ctx.fillText(`🔥 무적 피버!`, 590, 38); }
             
-            ctx.fillStyle = '#444444'; ctx.fillRect(685, 24, 95, 16);
-            //ctx.fillStyle = '#ffca28'; ctx.fillRect(685, 24, (currentDisplayDistance / stageTargetDistance) * 95, 16);
-            ctx.fillStyle = '#ffca28'; ctx.fillRect(685, 24, (currentDisplayDistance / currentStageTarget) * 95, 16);
+//            ctx.fillStyle = '#444444'; ctx.fillRect(685, 24, 95, 16);
+// 깃발            ctx.fillStyle = '#ffca28'; ctx.fillRect(685, 24, (currentDisplayDistance / currentStageTarget) * 95, 16);
+// 게이지 바 표시 (목표 거리에 도달하면 꽉 차게 멈춤)
+let progressRatio = Math.min(displayDist / currentStageTarget, 1);
+ctx.fillStyle = '#ffca28'; 
+ctx.fillRect(685, 24, progressRatio * 95, 16);
+
 
         } else if (gameState === 'ending') {
             ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
