@@ -581,8 +581,8 @@ function jump() {
         }
     }
 		function checkIfTop5(currentScore) {
-		    // 랭킹이 10개 미만이면 무조건 랭킹 진입
-		    if (leaderboard.length < 10) return true;
+		    // 랭킹이 8개 미만이면 무조건 랭킹 진입
+		    if (leaderboard.length < 7) return true;
 		    
 		    // 가장 낮은 점수(5위)보다 현재 점수가 높으면 랭킹 진입
 		    // leaderboard는 이미 높은 점수 순으로 정렬되어 있음
