@@ -234,7 +234,14 @@ let touchControl = {
 				    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
 				    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
 				    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-				} else if (type === 'fanfare') {
+				} else if (type === 'magic') {
+            osc.type = 'sine'; 
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'fanfare') {
             const now = audioCtx.currentTime;
             const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 523.25, 659.25];
             notes.forEach((freq, i) => {
@@ -249,18 +256,22 @@ let touchControl = {
         dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce', xBound: [140, 240], decors: ['🏭', '🏗️', '🔩', '☁️'],
 		 				jumpMod: 0.9,    // 점프력이 낮음
 		        scoreMod: 0.7,   // 점수 감소 페널티 50%
-		        speedMod: 0.9    // 기본 속도       	 
+		        speedMod: 0.9,    // 기본 속도       	 
+		        ghostMode: true // 장애물 관통 능력
 		        },
         mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55', xBound: [280, 380], decors: ['🏪', '🛍️', '🏷️', '✨'],
- 						jumpMod: 1.0, scoreMod: 1.0, speedMod: 1.0
+ 						jumpMod: 1.0, scoreMod: 1.0, speedMod: 1.0,
+ 						magnetRange: 2.0 // 자석 범위 2배
         	 },
         hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f', xBound: [420, 520], decors: ['🏫', '🌳', '☀️', '🎈'],
 						jumpMod: 1.1,    // 점프력 20% 높음
-        		scoreMod: 1.1, speedMod: 1.1
+        		scoreMod: 1.1, speedMod: 1.1,
+        		boostMod: 1.5 // 부스트 지속 시간 1.5배
         	 },
         yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'],
 						jumpMod: 1.2, scoreMod: 1.2, 
-        		speedMod: 1.2    // 이동 속도 30% 빠름
+        		speedMod: 1.2,   // 이동 속도 30% 빠름
+        		extraJumps: 1 // 추가 점프 1회 (총 3단)
         	 }
     };
 
@@ -335,7 +346,7 @@ let touchControl = {
 function loadLeaderboard() {
     db.ref('rankings')
         .orderByChild('score')
-        .limitToLast(5)
+        .limitToLast(7)
         .on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -538,14 +549,30 @@ window.addEventListener('touchend', (e) => {
 		    const statText = `${stats.name} 능력치: 점프 ${Math.round(stats.jumpMod * 100)}% | ` +
 		                     `데미지 ${Math.round(stats.scoreMod * 100)}% | ` +
 		                     `속도 ${Math.round(stats.speedMod * 100)}%`;
-		                     
-		    ctx.fillText(statText, canvas.width / 2, canvas.height - 12);
-		}
+   			ctx.fillText(statText, canvas.width / 2, canvas.height - 12);
 
-    function jump() {
+		    // 능력을 텍스트로 변환
+		    let abilityDesc = "";
+		    if (stats.ghostMode) abilityDesc = "장애물 관통";
+		    else if (stats.magnetRange) abilityDesc = "자석 범위 증가";
+		    else if (stats.boostMod) abilityDesc = "부스트 시간 증가";
+		    else if (stats.extraJumps) abilityDesc = "3단 점프 가능";
+				ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+//    ctx.fillRect(20, 50, 220, 45);
+		    ctx.fillStyle = '#ffffff';
+		    ctx.font = 'bold 13px Arial';
+		    ctx.textAlign = 'left';
+		    ctx.fillText(`${stats.name}주특기 : ${abilityDesc}`, 20, 80);
+		}
+    
+
+function jump() {
         if (gameState !== 'playing') return;
         const stats = charSettings[selectedChar]; //능력치 루틴 추가
-        if (player.isGrounded || player.jumpCount < player.maxJumps) {
+				// 예은의 경우 1회 추가 점프 (총 3단)
+        
+//        if (player.isGrounded || player.jumpCount < player.maxJumps) {
+        if (player.isGrounded || player.jumpCount < player.maxJumps + (stats.extraJumps || 0) ) {
 						// 기존 jumpPower에 jumpMod를 곱함
             let power = (player.boostTimer > 0 ? player.jumpPower * 1.25 : player.jumpPower) * stats.jumpMod;
             if (player.jumpCount === 0) { player.vy = power; playSound('jump'); } 
@@ -554,8 +581,8 @@ window.addEventListener('touchend', (e) => {
         }
     }
 		function checkIfTop5(currentScore) {
-		    // 랭킹이 5개 미만이면 무조건 랭킹 진입
-		    if (leaderboard.length < 5) return true;
+		    // 랭킹이 10개 미만이면 무조건 랭킹 진입
+		    if (leaderboard.length < 10) return true;
 		    
 		    // 가장 낮은 점수(5위)보다 현재 점수가 높으면 랭킹 진입
 		    // leaderboard는 이미 높은 점수 순으로 정렬되어 있음
@@ -821,6 +848,15 @@ window.addEventListener('touchend', (e) => {
             let obs = obstacles[i]; obs.x -= gameSpeed;
             if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
                 if (player.boostTimer > 0) { obstacles.splice(i, 1); continue; }
+								// --- [추가] 아빠의 장애물 관통 능력 적용 ---
+                // 아빠(stats.ghostMode가 true)라면 30% 확률로 충돌 무시
+                if (stats.ghostMode && Math.random() < 0.3) {
+     3              // 관통 성공 시, 장애물은 그냥 지나가게 둠 (splice 안 함)
+                    playSound('magic');
+                    showSpeechMessage("통과!");
+                    obs.x -= 100; // 장애물을 뒤로 강제 이동시켜 즉시 재충돌 방지
+                    continue; 
+                }
             		// [추가] 부딪혔을 때 흔들림 효과 시작 (10프레임 동안 유지)
                 if (obs.type === 'bomb') {
 //						        score = Math.floor(score / 2);
@@ -840,8 +876,21 @@ window.addEventListener('touchend', (e) => {
 
         for (let i = items.length - 1; i >= 0; i--) {
             let item = items[i]; item.x -= gameSpeed;
-            if (player.x < item.x + item.width && player.x + player.width > item.x && player.y < item.y + item.height && player.y + player.height > item.y) {
-                if (item.type === 'bigStar') { player.boostTimer = 600; playSound('powerup'); } 
+            
+            // 엄마의 자석 능력: stats.magnetRange를 사용하여 판정 범위 확대
+				    let magnetRange = (selectedChar === 'mom' ? (stats.magnetRange || 1) : 0);
+				    let hitBoxExpansion = 20 * magnetRange;
+    
+//            if (player.x < item.x + item.width && player.x + player.width > item.x && player.y < item.y + item.height && player.y + player.height > item.y) {
+            if (player.x < item.x + item.width + hitBoxExpansion && 
+            player.x + player.width > item.x - hitBoxExpansion && 
+            player.y < item.y + item.height + hitBoxExpansion && 
+            player.y + player.height > item.y- hitBoxExpansion) {
+                if (item.type === 'bigStar') { 
+                	// 하윤의 부스트 능력은 아래에서 처리
+                	player.boostTimer = 600 * (stats.boostMod || 1);; 
+                	playSound('powerup'); 
+                } 
                 else if (item.type === 'gift') { score += 5000; playSound('item'); if (!isMessageForced) showSpeechMessage("대박! +5000"); } 
                 else { score += 1000; playSound('item'); if (!isMessageForced) showSpeechMessage("+1000!"); }
                 items.splice(i, 1); continue;
