@@ -246,10 +246,22 @@ let touchControl = {
     }
 
     const charSettings = {
-        dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce', xBound: [140, 240], decors: ['🏭', '🏗️', '🔩', '☁️'] },
-        mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55', xBound: [280, 380], decors: ['🏪', '🛍️', '🏷️', '✨'] },
-        hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f', xBound: [420, 520], decors: ['🏫', '🌳', '☀️', '🎈'] },
-        yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'] }
+        dad: { name: '아빠', theme: '#4a5568', obstacle: '⚙️', bgName: '공장 지대', imgUrl: 'dad.png', bodyColor: '#3182ce', xBound: [140, 240], decors: ['🏭', '🏗️', '🔩', '☁️'],
+		 				jumpMod: 0.9,    // 점프력이 낮음
+		        scoreMod: 0.7,   // 점수 감소 페널티 50%
+		        speedMod: 0.9    // 기본 속도       	 
+		        },
+        mom: { name: '엄마', theme: '#48bb78', obstacle: '🛒', bgName: '슈퍼마켓', imgUrl: 'mom.png', bodyColor: '#f6ad55', xBound: [280, 380], decors: ['🏪', '🛍️', '🏷️', '✨'],
+ 						jumpMod: 1.0, scoreMod: 1.0, speedMod: 1.0
+        	 },
+        hayun: { name: '하윤', theme: '#ed64a6', obstacle: '🪑', bgName: '학교 가는 길', imgUrl: 'hayun.png', bodyColor: '#b7791f', xBound: [420, 520], decors: ['🏫', '🌳', '☀️', '🎈'],
+						jumpMod: 1.1,    // 점프력 20% 높음
+        		scoreMod: 1.1, speedMod: 1.1
+        	 },
+        yeeun: { name: '예은', theme: '#805ad5', obstacle: '🎒', bgName: '학교 교실', imgUrl: 'yeeun.png', bodyColor: '#e53e3e', xBound: [560, 660], decors: ['📝', '✏️', '🎨', '💡'],
+						jumpMod: 1.2, scoreMod: 1.2, 
+        		speedMod: 1.2    // 이동 속도 30% 빠름
+        	 }
     };
 
       
@@ -509,11 +521,33 @@ window.addEventListener('touchend', (e) => {
         document.getElementById('nameInputOverlay').style.display = 'none';
         playSound('jump');
     }
+		function drawCharacterStats() {  //화면에 능력치 표시
+		    if (gameState !== 'playing') return;
+
+		    const stats = charSettings[selectedChar];
+		    const ctx = canvas.getContext('2d');
+		    
+		    // 화면 하단 반투명 배경
+		    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+		    ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+		    
+		    // 능력치 텍스트
+		    ctx.fillStyle = '#ffffff';
+		    ctx.font = '12px Arial';
+		    ctx.textAlign = 'center';
+		    const statText = `${stats.name} 능력치: 점프 ${Math.round(stats.jumpMod * 100)}% | ` +
+		                     `데미지 ${Math.round(stats.scoreMod * 100)}% | ` +
+		                     `속도 ${Math.round(stats.speedMod * 100)}%`;
+		                     
+		    ctx.fillText(statText, canvas.width / 2, canvas.height - 12);
+		}
 
     function jump() {
         if (gameState !== 'playing') return;
+        const stats = charSettings[selectedChar]; //능력치 루틴 추가
         if (player.isGrounded || player.jumpCount < player.maxJumps) {
-            let power = player.boostTimer > 0 ? player.jumpPower * 1.25 : player.jumpPower;
+						// 기존 jumpPower에 jumpMod를 곱함
+            let power = (player.boostTimer > 0 ? player.jumpPower * 1.25 : player.jumpPower) * stats.jumpMod;
             if (player.jumpCount === 0) { player.vy = power; playSound('jump'); } 
             else { player.vy = power * 0.88; playSound('doubleJump'); }
             player.jumpCount++; player.isGrounded = false;
@@ -629,8 +663,10 @@ window.addEventListener('touchend', (e) => {
         }
 
         let wishX = player.x;
-        if (inputStatus.leftPressed) wishX -= player.speedX;
-        if (inputStatus.rightPressed) wishX += player.speedX;
+				const stats = charSettings[selectedChar];
+				let moveSpeed = player.speedX * stats.speedMod; // 캐릭터별 속도 적용        
+        if (inputStatus.leftPressed) wishX -= moveSpeed;
+        if (inputStatus.rightPressed) wishX += moveSpeed;
         player.x = Math.max(0, Math.min(canvas.width - player.width, wishX));
 
         player.vy += player.gravity;
@@ -718,8 +754,13 @@ window.addEventListener('touchend', (e) => {
 				    return;
 				}else if (gameState === 'playing' && goalFlagX < -50) {
 				    // 강제 게임오버 또는 깃발 위치를 다시 앞으로 소환하는 로직 필요
-				    gameState = 'gameover'; 
-				    playSound('gameover');
+//				    gameState = 'gameover'; 
+//				    playSound('gameover');
+					// 깃발을 지나쳤어도 스테이지 완료로 처리
+					    gameSpeed = 0; // 멈춤
+					    gameState = 'goalSuccess';
+					    createConfetti(); 
+					    playSound('fanfare');
 				}
 
         spawnTimer++;
@@ -773,9 +814,9 @@ window.addEventListener('touchend', (e) => {
         bgElements = bgElements.filter(el => el.x > -50);
 
        // if (currentDisplayDistance >= (stageTargetDistance - 40) && gameState === 'playing') { goalFlagX -= gameSpeed; }
-if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playing') { 
-    goalFlagX -= gameSpeed; 
-}
+			if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playing') { 
+			    goalFlagX -= gameSpeed; 
+			}
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i]; obs.x -= gameSpeed;
             if (player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
@@ -783,12 +824,12 @@ if (currentDisplayDistance >= (currentStageTarget - 40) && gameState === 'playin
             		// [추가] 부딪혔을 때 흔들림 효과 시작 (10프레임 동안 유지)
                 if (obs.type === 'bomb') {
 //						        score = Math.floor(score / 2);
-										score = Math.max(0, score - 10000)
+										score = Math.max(0, score - (10000 * stats.scoreMod));
 						        playSound('bomb'); // 폭발음 재생
 						        showSpeechMessage("앗! 폭탄이다!");
   		  						shakeTimer = 60; //흔들릴 시간 설정
 						    } else {
-                		score = Math.max(0, score - 1500); playSound('hit'); 
+                		score = Math.max(0, score - (1500 * stats.scoreMod)); playSound('hit'); 
 		                if (!isMessageForced) showSpeechMessage("아야!"); 
 	    							shakeTimer = 20; //흔들릴 시간 설정
                 }
@@ -1087,6 +1128,7 @@ ctx.fillRect(685, 24, progressRatio * 95, 16);
             ctx.fillText("다시 도전하기", canvas.width / 2, 374);
         }
     }
+    drawCharacterStats();
   }
 
     loadLeaderboard();
