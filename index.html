@@ -346,7 +346,7 @@ let touchControl = {
 function loadLeaderboard() {
     db.ref('rankings')
         .orderByChild('score')
-        .limitToLast(7)
+        .limitToLast(5)
         .on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -553,9 +553,9 @@ window.addEventListener('touchend', (e) => {
 
 		    // 능력을 텍스트로 변환
 		    let abilityDesc = "";
-		    if (stats.ghostMode) abilityDesc = "장애물 관통";
-		    else if (stats.magnetRange) abilityDesc = "자석 범위 증가";
-		    else if (stats.boostMod) abilityDesc = "부스트 시간 증가";
+		    if (stats.ghostMode) abilityDesc = "장애물 관통 (50%)";
+		    else if (stats.magnetRange) abilityDesc = "자석 범위 증가 (2배)";
+		    else if (stats.boostMod) abilityDesc = "부스트 시간 증가 (15초)";
 		    else if (stats.extraJumps) abilityDesc = "3단 점프 가능";
 				ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
 //    ctx.fillRect(20, 50, 220, 45);
@@ -581,8 +581,8 @@ function jump() {
         }
     }
 		function checkIfTop5(currentScore) {
-		    // 랭킹이 8개 미만이면 무조건 랭킹 진입
-		    if (leaderboard.length < 7) return true;
+		    // 랭킹이 5개 미만이면 무조건 랭킹 진입
+		    if (leaderboard.length < 5) return true;
 		    
 		    // 가장 낮은 점수(5위)보다 현재 점수가 높으면 랭킹 진입
 		    // leaderboard는 이미 높은 점수 순으로 정렬되어 있음
@@ -850,7 +850,7 @@ function jump() {
                 if (player.boostTimer > 0) { obstacles.splice(i, 1); continue; }
 								// --- [추가] 아빠의 장애물 관통 능력 적용 ---
                 // 아빠(stats.ghostMode가 true)라면 30% 확률로 충돌 무시
-                if (stats.ghostMode && Math.random() < 0.3) {
+                if (stats.ghostMode && Math.random() < 0.5) {
      3              // 관통 성공 시, 장애물은 그냥 지나가게 둠 (splice 안 함)
                     playSound('magic');
                     showSpeechMessage("통과!");
